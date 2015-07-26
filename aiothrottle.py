@@ -2,6 +2,7 @@
 import io
 import asyncio
 import time
+from asyncio import Event
 
 class Throttle:
     def __init__(self, base_stream, limit, interval):
@@ -27,7 +28,7 @@ class ThrottledStreamWriter(asyncio.StreamWriter):
 
 @asyncio.coroutine
 def feed_data(stream, stop_event):
-    print("feed watch thread")
+    print("feed watch task")
     FEEDING_AMOUNT = 2**30 # 1 GB
     CHUNK_SIZE = 1024
     amount_fed = 0
@@ -36,19 +37,19 @@ def feed_data(stream, stop_event):
         amount_fed = amount_fed+CHUNK_SIZE
         if amount_fed >= FEEDING_AMOUNT:
             break
-    print("feed thread ended")
+        yield from asyncio.
+    print("feed task ended")
 
-def stop_thread(feed_thread, stop_event):
-    if stop_event is None:
-        return
+class TestReadTransport(asyncio.ReadTransport):
+    # default limit: 1 GB
+    def __init__(self, limit=2**30, chunk_size=1024, interval=1.0):
+        self.limit = limit
+        self.chunk_size = chunk_size
+        self.interval = interval
+        self._paused = False
 
-    stop_event.set()
-    if (
-            feed_thread is not None and
-            feed_thread.is_alive()):
-        print("stopping feed thread...")
-        stop_event.set()
-        feed_thread.join()
+class TestProtocol(asyncio.Protocol):
+    
 
 @asyncio.coroutine
 def run_reader_test(base_stream_reader):
@@ -60,19 +61,17 @@ if __name__ == "__main__":
 
     print("starting")
     try:
+        protocol = TestProcol()
+        protocol.connection_made
+
         base_stream_reader = asyncio.StreamReader()
+        base_stream_reader.set_transport
+        stop_event = Event()
 
-        stop_event = threading.Event()
-
-        feed_thread = threading.Thread(
-            target=feed_data,
-            name="feed thread",
-            args=(base_stream_reader, stop_event))
-        feed_thread.start()
-        
+        asyncio.async(feed_data(base_stream_reader, stop_event))
         loop.run_until_complete(run_reader_test(base_stream_reader))
     except KeyboardInterrupt:
-        stop_thread(feed_thread, stop_event)
+        pass
     finally:
         loop.close()
         print("ended")
