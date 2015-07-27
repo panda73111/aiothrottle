@@ -1,28 +1,83 @@
+#!/usr/bin/env python3
 
 import io
 import asyncio
 import time
 from asyncio import Event
 
+class ThrottlingError(Exception):
+    """Error during throttling of an asyncio stream"""
+
+    def __init__(self, allowed, added):
+        """
+        :param allowed: the allowed maximum number of bytes
+        :type: int
+        :param added: the actual number of bytes added
+        :type: int
+        """
+        self.allowed = allowed
+        self.added = added
+
 class Throttle:
-    def __init__(self, base_stream, limit, interval):
+    """Throttle for an asnycio stream"""
+
+    def __init__(self, base_stream, byte_limit, interval=1.0):
+        """
+        :param base_stream: the asyncio stream to be throttled
+        :type: asyncio.StreamReader, asyncio.StreamWriter
+        :param limit: the limit in bytes to read/write per interval
+        :type: int
+        :param interval: the limitation time frame (usually one second)
+        :type: float
+        """
         if base_stream is None:
             raise ValueError("base_stream must not be None")
-        if limit < 1:
-            raise ValueError("limit must be a positive integer")
+        if byte_limit < 1:
+            raise ValueError("byte_limit must be a positive integer")
         if interval <= 0.0:
             raise ValueError("interval must be positive")
 
-        self.limit = limit
+        self.byte_limit = byte_limit
         self.interval = interval
         self._base_stream = base_stream
-        self._last_check_time = 0
+        self._interv_start = 0
+        self._io_in_interv = 0
+
+    def _check_interval(self):
+        """checks if the current interval has passed and a new one has started
+
+        :rtype: None
+        """
+        now = time.time()
+        if now - self._interv_start > self.interval:
+            self._io_in_interv = 0
+            self._interv_start = now
+
+    def allowed_io(self):
+        """checks if a requested IO action is allowed
+
+        :returns: number of bytes allowed to read/write
+        :rtype: int
+        """
+        self._check_interval()
+        return self.byte_limit - self._io_in_interv
+
+    def add_io(self, byte_count):
+        """registers a number of bytes read/written
+        Throws a ThrottlingError if more than the allowed number of bytes
+        is being added
+
+        :param byte_count: number of bytes to add to the current interval
+        :type: int
+        :rtype: None
+        """
+        allowed = self.allowed_io()
+        if byte_count > allowed:
+            raise ThrottlingError(allowed, byte_count)
+
+        self._io_in_interv += byte_count
 
 class ThrottledStreamReader(asyncio.StreamReader):
-    def __init__(self, base_stream, limit, interval=1.0):
-        self._throttle = Throttle(base_stream, limit, interval)
-
-class ThrottledStreamWriter(asyncio.StreamWriter):
     def __init__(self, base_stream, limit, interval=1.0):
         self._throttle = Throttle(base_stream, limit, interval)
 
@@ -37,7 +92,6 @@ def feed_data(stream, stop_event):
         amount_fed = amount_fed+CHUNK_SIZE
         if amount_fed >= FEEDING_AMOUNT:
             break
-        yield from asyncio.
     print("feed task ended")
 
 class TestReadTransport(asyncio.ReadTransport):
@@ -49,7 +103,7 @@ class TestReadTransport(asyncio.ReadTransport):
         self._paused = False
 
 class TestProtocol(asyncio.Protocol):
-    
+    pass
 
 @asyncio.coroutine
 def run_reader_test(base_stream_reader):
@@ -61,7 +115,7 @@ if __name__ == "__main__":
 
     print("starting")
     try:
-        protocol = TestProcol()
+        protocol = TestProtocol()
         protocol.connection_made
 
         base_stream_reader = asyncio.StreamReader()
@@ -75,3 +129,4 @@ if __name__ == "__main__":
     finally:
         loop.close()
         print("ended")
+
