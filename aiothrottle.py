@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
-import io
 import asyncio
 import time
-from asyncio import Event
+import logging
 
 class ThrottlingError(Exception):
     """Error during throttling of an asyncio stream"""
@@ -79,51 +78,100 @@ class Throttle:
 
 class ThrottledStreamReader(asyncio.StreamReader):
     def __init__(self, base_stream, limit, interval=1.0):
+        super().__init__()
         self._throttle = Throttle(base_stream, limit, interval)
-
-@asyncio.coroutine
-def feed_data(stream, stop_event):
-    print("feed watch task")
-    FEEDING_AMOUNT = 2**30 # 1 GB
-    CHUNK_SIZE = 1024
-    amount_fed = 0
-    while not stop_event.is_set():
-        stream.feed_data(bytes(CHUNK_SIZE))
-        amount_fed = amount_fed+CHUNK_SIZE
-        if amount_fed >= FEEDING_AMOUNT:
-            break
-    print("feed task ended")
 
 class TestReadTransport(asyncio.ReadTransport):
     # default limit: 1 GB
-    def __init__(self, limit=2**30, chunk_size=1024, interval=1.0):
-        self.limit = limit
-        self.chunk_size = chunk_size
-        self.interval = interval
+    def __init__(
+            self, protocol,
+            limit=2**30, chunk_size=2**30/10, interval=1.0):
+        super().__init__()
+        self._protocol = protocol
+        self._limit = limit
+        self._chunk_size = int(chunk_size)
+        self._interval = interval
         self._paused = False
+        self._closed = False
+        self._loop = asyncio.get_event_loop()
+        self._feed_handle = None
+        self._bytes_fed = 0
+        self.closed_callback = None
 
-class TestProtocol(asyncio.Protocol):
-    pass
+    def _schedule_data_feeding(self):
+        if self._feed_handle is not None:
+            self._feed_handle.cancel()
+        self._feed_handle = self._loop.call_later(
+            self._interval, self._feed_data)
+        logging.debug("scheduled data feed")
+
+    def _feed_data(self):
+        logging.debug("feeding %d bytes", self._chunk_size)
+        self._protocol.data_received(bytes(self._chunk_size))
+        self._bytes_fed += self._chunk_size
+
+        if self._bytes_fed >= self._limit:
+            self._protocol.eof_received()
+            self.close()
+        elif not self._paused:
+            self._schedule_data_feeding()
+
+    def open(self):
+        logging.debug("transport opened")
+        self._schedule_data_feeding()
+
+    def pause_reading(self):
+        if self._feed_handle is not None:
+            self._feed_handle.cancel()
+            self._feed_handle = None
+        self._paused = True
+        logging.debug("transport paused")
+
+    def resume_reading(self):
+        self._schedule_data_feeding()
+        self._paused = False
+        logging.debug("transport resumed")
+
+    def close(self):
+        self.pause_reading()
+        self._closed = True
+        if self.closed_callback is not None:
+            self._loop.call_soon(self.closed_callback)
+        logging.debug("transport closed")
 
 @asyncio.coroutine
-def run_reader_test(base_stream_reader):
-    reader = ThrottledStreamReader(base_stream_reader, 512)
-    yield from asyncio.sleep(100)
+def run_reader_test():
+    future = asyncio.Future()
+
+    def transport_closed():
+        logging.debug("got transport closed callback")
+        future.set_result(None)
+
+    base_reader = asyncio.StreamReader()
+    reader = ThrottledStreamReader(base_reader, 512)
+
+    protocol = asyncio.StreamReaderProtocol(reader)
+
+    transport = TestReadTransport(protocol)
+    transport.closed_callback = transport_closed
+
+    protocol.connection_made(transport)
+    transport.open()
+
+    data = b"0"
+    while len(data) != 0:
+        data = yield from reader.read(int(2**30/10))
+        logging.debug("read %d bytes", len(data))
+
+    yield from future
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     loop = asyncio.get_event_loop()
 
-    print("starting")
+    print("started")
     try:
-        protocol = TestProtocol()
-        protocol.connection_made
-
-        base_stream_reader = asyncio.StreamReader()
-        base_stream_reader.set_transport
-        stop_event = Event()
-
-        asyncio.async(feed_data(base_stream_reader, stop_event))
-        loop.run_until_complete(run_reader_test(base_stream_reader))
+        loop.run_until_complete(run_reader_test())
     except KeyboardInterrupt:
         pass
     finally:
