@@ -133,13 +133,13 @@ class ThrottledStreamReader:
 
         while not self._base_stream.at_eof() and (n < 0 or bytes_left > 0):
             to_read = self._throttle.allowed_io()
-            logging.debug("allowed bytes to read: %d", to_read)
+            logging.debug("[reader] allowed bytes to read: %d", to_read)
             if bytes_left > 0:
                 to_read = min(to_read, bytes_left)
 
             chunk = yield from self._base_stream.read(to_read)
             data.extend(chunk)
-            logging.debug("read chunk of size %d", len(chunk))
+            logging.debug("[reader] read chunk of size %d", len(chunk))
 
             self._throttle.add_io(len(chunk))
 
@@ -177,10 +177,10 @@ class TestReadTransport(asyncio.ReadTransport):
             self._feed_handle.cancel()
         self._feed_handle = self._loop.call_later(
             self._interval, self._feed_data)
-        logging.debug("scheduled data feed")
+        logging.debug("[transport] scheduled data feed")
 
     def _feed_data(self):
-        logging.debug("feeding %d bytes", self._chunk_size)
+        logging.debug("[transport] feeding %d bytes", self._chunk_size)
         self._protocol.data_received(bytes(self._chunk_size))
         self._bytes_fed += self._chunk_size
 
@@ -191,7 +191,7 @@ class TestReadTransport(asyncio.ReadTransport):
             self._schedule_data_feeding()
 
     def open(self):
-        logging.debug("transport opened")
+        logging.debug("[transport] opened")
         self._feed_data()
 
     def pause_reading(self):
@@ -199,19 +199,19 @@ class TestReadTransport(asyncio.ReadTransport):
             self._feed_handle.cancel()
             self._feed_handle = None
         self._paused = True
-        logging.debug("transport paused")
+        logging.debug("[transport] paused")
 
     def resume_reading(self):
         self._schedule_data_feeding()
         self._paused = False
-        logging.debug("transport resumed")
+        logging.debug("[transport] resumed")
 
     def close(self):
         self.pause_reading()
         self._closed = True
         if self.closed_callback is not None:
             self._loop.call_soon(self.closed_callback)
-        logging.debug("transport closed")
+        logging.debug("[transport] closed")
 
 @asyncio.coroutine
 def run_reader_test():
@@ -222,7 +222,7 @@ def run_reader_test():
     closed_waiter = asyncio.Future()
 
     def transport_closed():
-        logging.debug("got transport closed callback")
+        logging.debug("[test] got transport closed callback")
         closed_waiter.set_result(None)
 
     base_reader = asyncio.StreamReader()
@@ -244,19 +244,22 @@ def run_reader_test():
     while len(data) != 0:
         data = yield from reader.read(200)
         logging.debug(
-            "read attempt %d: read %d bytes",
+            "[test] read attempt %d: read %d bytes",
             attempt, len(data))
         attempt += 1
         amount += len(data)
 
     logging.info(
-        "reading rate: %.3f bytes per second",
+        "[test] reading rate: %.3f bytes per second",
         amount / (time.time() - start_time))
 
     yield from closed_waiter
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%H:%M:%S")
     loop = asyncio.get_event_loop()
 
     print("started")
