@@ -223,7 +223,7 @@ class TestReadTransport(asyncio.ReadTransport):
 @asyncio.coroutine
 def run_reader_test():
     # test transport: write 1024 bytes, 100 bytes per second
-    # throttled reader: limit transmit rate to 10 bytes per second,
+    # throttled reader: limit transmit rate to 20 bytes per second,
     #  while data is requested in 200 byte chunks
 
     closed_waiter = asyncio.Future()
@@ -233,7 +233,7 @@ def run_reader_test():
         closed_waiter.set_result(None)
 
     base_reader = asyncio.StreamReader()
-    reader = ThrottledStreamReader(base_reader, rate_limit=10)
+    reader = ThrottledStreamReader(base_reader, rate_limit=20)
 
     protocol = asyncio.StreamReaderProtocol(reader)
 
