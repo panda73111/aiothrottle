@@ -6,7 +6,7 @@ import logging
 from asyncio import Condition
 
 class Throttle:
-    """Throttle for an asnycio stream"""
+    """Throttle for an asyncio stream"""
 
     def __init__(self, rate_limit, interval=1.0):
         """
