@@ -4,19 +4,6 @@ import asyncio
 import time
 import logging
 
-class ThrottlingError(Exception):
-    """Error during throttling of an asyncio stream"""
-
-    def __init__(self, allowed, added):
-        """
-        :param allowed: the allowed maximum number of bytes
-        :type: int
-        :param added: the actual number of bytes added
-        :type: int
-        """
-        self.allowed = allowed
-        self.added = added
-
 class Throttle:
     """Throttle for an asnycio stream"""
 
@@ -63,17 +50,11 @@ class Throttle:
 
     def add_io(self, byte_count):
         """registers a number of bytes read/written
-        Throws a ThrottlingError if more than the allowed number of bytes
-        is being added
 
         :param byte_count: number of bytes to add to the current interval
         :type: int
         :rtype: None
         """
-        allowed = self.allowed_io()
-        if byte_count > allowed:
-            raise ThrottlingError(allowed, byte_count)
-
         self._io_in_interv += byte_count
 
 class ThrottledStreamReader(asyncio.StreamReader):
