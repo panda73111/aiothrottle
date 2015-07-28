@@ -67,13 +67,62 @@ class Throttle:
         """
         self._io_in_interv += byte_count
 
+    @asyncio.coroutine
+    def wait_remaining(self):
+        """waits until the current interval has passed
+
+        This makes sure a new IO action is allowed
+        :rtype: None
+        """
+        with (yield from self._new_interval_cond):
+            yield from self._new_interval_cond.wait()
+
 class ThrottledStreamReader(asyncio.StreamReader):
     def __init__(self, base_stream, rate_limit, interval=1.0, buf_limit=2**16):
         super().__init__(limit=buf_limit)
         self._throttle = Throttle(base_stream, rate_limit, interval)
 
+    def feed_data(self, data):
+        super().feed_data(data)
+        self._throttle.check_interval()
+
+    @asyncio.coroutine
+    def read(self, n=-1):
+        if self._exception is not None:
+            raise self._exception
+
+        if not n:
+            return b""
+
+        data = bytearray()
+        bytes_left = n
+
+        while not self._eof and (n < 0 or bytes_left > 0):
+
+            allowed = self._throttle.allowed_io()
+            chunk = yield from super().read(allowed)
+            data.extend(chunk)
+            self._throttle.add_io(len(chunk))
+            self._transport.pause_reading()
+            yield from self._throttle.wait_remaining()
+
+            bytes_left -= allowed
+
+        return bytes(data)
+
+    @asyncio.coroutine
+    def readline(self):
+        return (yield from super().readline())
+
+    @asyncio.coroutine
+    def readany(self):
+        return (yield from super().readany())
+
+    @asyncio.coroutine
+    def readexactly(self, n):
+        return (yield from super().readexactly(n))
+
 class TestReadTransport(asyncio.ReadTransport):
-    # default limit: 1 GB
     def __init__(
             self, protocol,
             total_size, chunk_size, interval=1.0):
