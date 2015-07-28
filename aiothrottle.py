@@ -121,25 +121,41 @@ class ThrottledStreamReader:
 
         data = bytearray()
         bytes_left = n
+        stream = self._base_stream
 
-        while not self._base_stream.at_eof() and (n < 0 or bytes_left > 0):
+        while (
+                not stream.at_eof() and 
+                (n < 0 or bytes_left > 0)):
+
             to_read = self._throttle.allowed_io()
-            logging.debug("[reader] allowed bytes to read: %d", to_read)
+
+            if self._throttle.time_left() > 0:
+
+                try:
+                    self._transport.pause_reading()
+                    yield from self._throttle.wait_remaining()
+                    self._transport.resume_reading()
+                except RuntimeError:
+                    # This can't be avoided because there's no indication
+                    # wether the transport has been closed and the reader
+                    # has received the EOF while it has got stored data
+                    # in it's buffer
+                    logging.debug("[reader] caught RuntimeError")
+                    to_read = -1
+
             if bytes_left > 0:
                 to_read = min(to_read, bytes_left)
 
-            chunk = yield from self._base_stream.read(to_read)
+            logging.debug(
+                "[reader] attempting to read %d bytes", to_read)
+
+            chunk = yield from stream.read(to_read)
             data.extend(chunk)
-            logging.debug("[reader] read chunk of size %d", len(chunk))
 
-            self._throttle.add_io(len(chunk))
-
-            if self._throttle.allowed_io() == 0:
-                self._transport.pause_reading()
-                yield from self._throttle.wait_remaining()
-                self._transport.resume_reading()
-
-            bytes_left -= len(chunk)
+            data_len = len(chunk)
+            logging.debug("[reader] read chunk of size %d", data_len)
+            self._throttle.add_io(data_len)
+            bytes_left -= data_len
 
         return bytes(data)
 
@@ -240,8 +256,6 @@ def run_reader_test():
     transport = TestReadTransport(
         protocol, total_size=1024, chunk_size=100)
     transport.closed_callback = transport_closed
-
-    protocol.connection_made(transport)
     transport.open()
 
     data = b"0"
