@@ -163,6 +163,8 @@ class TestReadTransport(asyncio.ReadTransport):
         logging.debug("[transport] scheduled data feed")
 
     def _feed_data(self):
+        if self._closed:
+            raise RuntimeError("closed")
         logging.debug("[transport] feeding %d bytes", self._chunk_size)
         self._protocol.data_received(bytes(self._chunk_size))
         self._bytes_fed += self._chunk_size
@@ -174,10 +176,17 @@ class TestReadTransport(asyncio.ReadTransport):
             self._schedule_data_feeding()
 
     def open(self):
+        if self._closed:
+            raise RuntimeError("closed")
+        self._protocol.connection_made(self)
         logging.debug("[transport] opened")
         self._feed_data()
 
     def pause_reading(self):
+        if self._closed:
+            raise RuntimeError("closed")
+        if self._paused:
+            raise RuntimeError("already paused")
         if self._feed_handle is not None:
             self._feed_handle.cancel()
             self._feed_handle = None
@@ -185,11 +194,18 @@ class TestReadTransport(asyncio.ReadTransport):
         logging.debug("[transport] paused")
 
     def resume_reading(self):
+        if self._closed:
+            raise RuntimeError("closed")
+        if not self._paused:
+            raise RuntimeError("not paused")
         self._schedule_data_feeding()
         self._paused = False
         logging.debug("[transport] resumed")
 
     def close(self):
+        if self._closed:
+            return
+        self._protocol.connection_lost(None)
         self.pause_reading()
         self._closed = True
         if self.closed_callback is not None:
