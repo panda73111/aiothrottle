@@ -125,7 +125,32 @@ class ThrottledStreamReader:
 
     @asyncio.coroutine
     def read(self, n=-1):
-        return (yield from self._base_stream.read(n))
+        if not n:
+            return b""
+
+        data = bytearray()
+        bytes_left = n
+
+        while not self._base_stream.at_eof() and (n < 0 or bytes_left > 0):
+            to_read = self._throttle.allowed_io()
+            logging.debug("allowed bytes to read: %d", to_read)
+            if bytes_left > 0:
+                to_read = min(to_read, bytes_left)
+
+            chunk = yield from self._base_stream.read(to_read)
+            data.extend(chunk)
+            logging.debug("read chunk of size %d", len(chunk))
+
+            self._throttle.add_io(len(chunk))
+
+            if self._throttle.allowed_io() == 0:
+                self._transport.pause_reading()
+                yield from self._throttle.wait_remaining()
+                self._transport.resume_reading()
+
+            bytes_left -= len(chunk)
+
+        return bytes(data)
 
     @asyncio.coroutine
     def readexactly(self, n):
@@ -167,7 +192,7 @@ class TestReadTransport(asyncio.ReadTransport):
 
     def open(self):
         logging.debug("transport opened")
-        self._schedule_data_feeding()
+        self._feed_data()
 
     def pause_reading(self):
         if self._feed_handle is not None:
