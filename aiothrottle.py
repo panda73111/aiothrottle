@@ -141,29 +141,45 @@ class TestReadTransport(asyncio.ReadTransport):
 
 @asyncio.coroutine
 def run_reader_test():
-    future = asyncio.Future()
+    # test transport: write 1024 bytes, 100 bytes per second
+    # throttled reader: limit transmit rate to 10 bytes per second,
+    #  while data is requested in 200 byte chunks
+
+    closed_waiter = asyncio.Future()
 
     def transport_closed():
         logging.debug("got transport closed callback")
-        future.set_result(None)
+        closed_waiter.set_result(None)
 
     base_reader = asyncio.StreamReader()
-    reader = ThrottledStreamReader(base_reader, 512)
+    reader = ThrottledStreamReader(base_reader, limit=10)
 
     protocol = asyncio.StreamReaderProtocol(reader)
 
-    transport = TestReadTransport(protocol)
+    transport = TestReadTransport(
+        protocol, total_size=1024, chunk_size=100)
     transport.closed_callback = transport_closed
 
     protocol.connection_made(transport)
     transport.open()
 
     data = b"0"
+    attempt = 0
+    amount = 0
+    start_time = time.time()
     while len(data) != 0:
-        data = yield from reader.read(int(2**30/10))
-        logging.debug("read %d bytes", len(data))
+        data = yield from reader.read(200)
+        logging.debug(
+            "read attempt %d: read %d bytes",
+            attempt, len(data))
+        attempt += 1
+        amount += len(data)
 
-    yield from future
+    logging.info(
+        "reading rate: %.3f bytes per second",
+        amount / (time.time() - start_time))
+
+    yield from closed_waiter
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
@@ -177,4 +193,3 @@ if __name__ == "__main__":
     finally:
         loop.close()
         print("ended")
-
