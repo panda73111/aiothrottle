@@ -74,50 +74,43 @@ class Throttle:
         with (yield from self._new_interval_cond):
             yield from self._new_interval_cond.wait()
 
-class ThrottledStreamReader(asyncio.StreamReader):
-    def __init__(self, base_stream, rate_limit, interval=1.0, buf_limit=2**16):
-        super().__init__(limit=buf_limit)
-        self._throttle = Throttle(base_stream, rate_limit, interval)
+class ThrottledStreamReader:
+    def __init__(self, base_stream, rate_limit, interval=1.0):
+        self._throttle = Throttle(rate_limit, interval)
+        self._base_stream = base_stream
+        self._transport = None
+
+    def exception(self):
+        return self._base_stream.exception
+
+    def set_exception(self, exc):
+        self._base_stream.set_exception(exc)
+
+    def set_transport(self, transport):
+        self._base_stream.set_transport(transport)
+        self._transport = transport
+
+    def feed_eof(self):
+        self._base_stream.feed_eof()
+
+    def at_eof(self):
+        return self._base_stream.at_eof()
 
     def feed_data(self, data):
-        super().feed_data(data)
+        self._base_stream.feed_data(data)
         self._throttle.check_interval()
 
     @asyncio.coroutine
-    def read(self, n=-1):
-        if self._exception is not None:
-            raise self._exception
-
-        if not n:
-            return b""
-
-        data = bytearray()
-        bytes_left = n
-
-        while not self._eof and (n < 0 or bytes_left > 0):
-
-            allowed = self._throttle.allowed_io()
-            chunk = yield from super().read(allowed)
-            data.extend(chunk)
-            self._throttle.add_io(len(chunk))
-            self._transport.pause_reading()
-            yield from self._throttle.wait_remaining()
-
-            bytes_left -= allowed
-
-        return bytes(data)
-
-    @asyncio.coroutine
     def readline(self):
-        return (yield from super().readline())
+        return (yield from self._base_stream.readline())
 
     @asyncio.coroutine
-    def readany(self):
-        return (yield from super().readany())
+    def read(self, n=-1):
+        return (yield from self._base_stream.read(n))
 
     @asyncio.coroutine
     def readexactly(self, n):
-        return (yield from super().readexactly(n))
+        return (yield from self._base_stream.readexactly(n))
 
 class TestReadTransport(asyncio.ReadTransport):
     def __init__(
