@@ -8,18 +8,15 @@ from asyncio import Condition
 class Throttle:
     """Throttle for an asnycio stream"""
 
-    def __init__(self, base_stream, rate_limit, interval=1.0):
+    def __init__(self, rate_limit, interval=1.0):
         """
-        :param base_stream: the asyncio stream to be throttled
-        :type: asyncio.StreamReader, asyncio.StreamWriter
-        :param limit: the limit in bytes to read/write per interval
+        :param rate_limit: the limit in bytes to read/write per interval
         :type: int
         :param interval: the limitation time frame (usually one second)
         :type: float
         """
         self.rate_limit = rate_limit
         self.interval = interval
-        self._base_stream = base_stream
         self._interv_start = 0
         self._io_in_interv = 0
         self._new_interval_cond = Condition()
