@@ -8,11 +8,11 @@ from asyncio import Condition
 class Throttle:
     """Throttle for an asyncio stream"""
 
-    def __init__(self, rate_limit, interval=1.0):
+    def __init__(self, rate_limit, interval=1.0, loop=None):
         """
         :param rate_limit: the limit in bytes to read/write per interval
         :type: int
-        :param interval: the limitation time frame (usually one second)
+        :param interval: the limitation time frame in seconds
         :type: float
         """
         self.rate_limit = rate_limit
@@ -20,6 +20,10 @@ class Throttle:
         self._interv_start = 0
         self._io_in_interv = 0
         self._new_interval_cond = Condition()
+        self._timer_handle = None
+        if loop is None:
+            loop = asyncio.get_event_loop()
+        self._loop = loop
 
     @asyncio.coroutine
     def _new_interval(self):
@@ -28,23 +32,31 @@ class Throttle:
         :rtype: None
         """
         with (yield from self._new_interval_cond):
-            self._new_interval_cond.notify()
+            self._new_interval_cond.notify_all()
 
-    def _reset_interval(self, timestamp):
+    def _reset_interval(self, timestamp=-1):
         self._io_in_interv = 0
-        self._interv_start = timestamp
-        asyncio.async(self._new_interval())
+        self._interv_start = timestamp if timestamp != -1 else time.time()
+
+        if self._timer_handle is not None:
+            self._timer_handle.cancel()
+            self._timer_handle = None
+
+        asyncio.async(self._new_interval(), loop=self._loop)
 
     def check_interval(self):
         """checks if the current interval has passed and a new one has started
 
-        This has to be called when new data is available, so that waiting
-        calls get notified if the interval has passed
-        :rtype: None
+        :returns: seconds left until the interval ends
+        :rtype: float
         """
         now = time.time()
         if now - self._interv_start > self.interval:
             self._reset_interval(now)
+            return 0
+
+        remaining = self.interval - (now - self._interv_start)
+        return remaining
 
     def allowed_io(self):
         """checks if a requested IO action is allowed
@@ -71,6 +83,13 @@ class Throttle:
         This makes sure a new IO action is allowed
         :rtype: None
         """
+        time_left = self.check_interval()
+        if time_left == 0:
+            return
+
+        self._timer_handle = self._loop.call_later(
+            time_left, self._reset_interval)
+
         with (yield from self._new_interval_cond):
             yield from self._new_interval_cond.wait()
 
