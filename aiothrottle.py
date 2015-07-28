@@ -100,6 +100,7 @@ class ThrottledStreamReader:
         self._throttle = Throttle(rate_limit, interval)
         self._base_stream = base_stream
         self._transport = None
+        self._eof = False
 
     def exception(self):
         return self._base_stream.exception
@@ -113,6 +114,7 @@ class ThrottledStreamReader:
 
     def feed_eof(self):
         self._base_stream.feed_eof()
+        self._eof = True
 
     def at_eof(self):
         return self._base_stream.at_eof()
@@ -137,21 +139,18 @@ class ThrottledStreamReader:
                 not stream.at_eof() and 
                 (n < 0 or bytes_left > 0)):
 
-            to_read = self._throttle.allowed_io()
+            if self._eof:
+                to_read = -1
+            else:
+                to_read = self._throttle.allowed_io()
 
-            if self._throttle.time_left() > 0:
-
-                try:
+                if to_read == 0:
+                    # no more data allowed in this interval
                     self._transport.pause_reading()
                     yield from self._throttle.wait_remaining()
-                    self._transport.resume_reading()
-                except RuntimeError:
-                    # This can't be avoided because there's no indication
-                    # wether the transport has been closed and the reader
-                    # has received the EOF while it has got stored data
-                    # in it's buffer
-                    logging.debug("[reader] caught RuntimeError")
-                    to_read = -1
+                    self._transport.resume_reading()                    
+
+                    to_read = self._throttle.allowed_io()
 
             if bytes_left > 0:
                 to_read = min(to_read, bytes_left)
@@ -249,7 +248,7 @@ class TestReadTransport(asyncio.ReadTransport):
 @asyncio.coroutine
 def run_reader_test():
     # test transport: write 1024 bytes, 100 bytes per second
-    # throttled reader: limit transmit rate to 20 bytes per second,
+    # throttled reader: limit transmit rate to 40 bytes per second,
     #  while data is requested in 200 byte chunks
 
     closed_waiter = asyncio.Future()
@@ -259,7 +258,7 @@ def run_reader_test():
         closed_waiter.set_result(None)
 
     base_reader = asyncio.StreamReader()
-    reader = ThrottledStreamReader(base_reader, rate_limit=20)
+    reader = ThrottledStreamReader(base_reader, rate_limit=40)
 
     protocol = asyncio.StreamReaderProtocol(reader)
 
