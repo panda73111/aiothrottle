@@ -31,6 +31,7 @@ class Throttle:
         """
         self._io_in_interv = 0
         self._interv_start = timestamp if timestamp >= 0 else time.time()
+        logging.debug("[throttle] reset interval")
 
     def time_left(self):
         """returns the number of seconds left in the current interval
@@ -42,9 +43,11 @@ class Throttle:
         """
         now = time.time()
         if now - self._interv_start > self.interval:
+            logging.debug("[throttle] seconds left: 0")
             return 0
 
         remaining = self.interval - (now - self._interv_start)
+        logging.debug("[throttle] seconds left: %.3f", remaining)
         return remaining
 
     def allowed_io(self):
@@ -55,7 +58,9 @@ class Throttle:
         """
         if self.time_left() == 0:
             self._reset_interval()
-        return self.rate_limit - self._io_in_interv
+        allowed = self.rate_limit - self._io_in_interv
+        logging.debug("[throttle] allowed bytes: %d", allowed)
+        return allowed
 
     def add_io(self, byte_count):
         """registers a number of bytes read/written
@@ -65,6 +70,9 @@ class Throttle:
         :rtype: None
         """
         self._io_in_interv += byte_count
+        logging.debug(
+            "[throttle] added bytes: %d, now: %d",
+            byte_count, self._io_in_interv)
 
     @asyncio.coroutine
     def wait_remaining(self):
@@ -74,6 +82,7 @@ class Throttle:
         :rtype: None
         """
         time_left = self.time_left()
+        logging.debug("[throttle] sleeping for %.3f seconds", time_left)
         yield from asyncio.sleep(time_left)
 
 class ThrottledStreamReader:
@@ -100,7 +109,6 @@ class ThrottledStreamReader:
 
     def feed_data(self, data):
         self._base_stream.feed_data(data)
-        self._throttle.check_interval()
 
     @asyncio.coroutine
     def readline(self):
