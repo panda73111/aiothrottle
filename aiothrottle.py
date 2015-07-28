@@ -24,7 +24,7 @@ class Throttle:
 
     def _reset_interval(self, timestamp=-1):
         """starts a new interval at the given timestamp
-        
+
         :param timestamp: the timestamp in seconds of the interval start
         :type: float
         :rtype: None
@@ -35,7 +35,7 @@ class Throttle:
 
     def time_left(self):
         """returns the number of seconds left in the current interval
-        
+
         If the interval has already passed, this returns 0.
 
         :returns: seconds left until the interval ends
@@ -88,9 +88,9 @@ class Throttle:
 class ThrottledStreamReader:
     """Throttled wrapper for asyncio.StreamReader or subclasses"""
 
-    def __init__(self, base_stream, rate_limit, interval=1.0):
+    def __init__(self, reader, rate_limit, interval=1.0):
         """
-        :param base_stream: the reading stream to wrap and throttle
+        :param reader: the reading stream to wrap and throttle
         :type: asyncio.StreamReader or subclass
         :param rate_limit: the maximum amount of bytes per interval
         :type: int
@@ -98,33 +98,33 @@ class ThrottledStreamReader:
         :type: float
         """
         self._throttle = Throttle(rate_limit, interval)
-        self._base_stream = base_stream
+        self._reader = reader
         self._transport = None
         self._eof = False
 
     def exception(self):
-        return self._base_stream.exception
+        return self._reader.exception
 
     def set_exception(self, exc):
-        self._base_stream.set_exception(exc)
+        self._reader.set_exception(exc)
 
     def set_transport(self, transport):
-        self._base_stream.set_transport(transport)
+        self._reader.set_transport(transport)
         self._transport = transport
 
     def feed_eof(self):
-        self._base_stream.feed_eof()
+        self._reader.feed_eof()
         self._eof = True
 
     def at_eof(self):
-        return self._base_stream.at_eof()
+        return self._reader.at_eof()
 
     def feed_data(self, data):
-        self._base_stream.feed_data(data)
+        self._reader.feed_data(data)
 
     @asyncio.coroutine
     def readline(self):
-        return (yield from self._base_stream.readline())
+        return (yield from self._reader.readline())
 
     @asyncio.coroutine
     def read(self, n=-1):
@@ -133,10 +133,10 @@ class ThrottledStreamReader:
 
         data = bytearray()
         bytes_left = n
-        stream = self._base_stream
+        reader = self._reader
 
         while (
-                not stream.at_eof() and 
+                not reader.at_eof() and
                 (n < 0 or bytes_left > 0)):
 
             if self._eof:
@@ -148,7 +148,7 @@ class ThrottledStreamReader:
                     # no more data allowed in this interval
                     self._transport.pause_reading()
                     yield from self._throttle.wait_remaining()
-                    self._transport.resume_reading()                    
+                    self._transport.resume_reading()
 
                     to_read = self._throttle.allowed_io()
 
@@ -158,7 +158,7 @@ class ThrottledStreamReader:
             logging.debug(
                 "[reader] attempting to read %d bytes", to_read)
 
-            chunk = yield from stream.read(to_read)
+            chunk = yield from reader.read(to_read)
             data.extend(chunk)
 
             data_len = len(chunk)
@@ -170,7 +170,7 @@ class ThrottledStreamReader:
 
     @asyncio.coroutine
     def readexactly(self, n):
-        return (yield from self._base_stream.readexactly(n))
+        return (yield from self._reader.readexactly(n))
 
 class TestReadTransport(asyncio.ReadTransport):
     def __init__(
