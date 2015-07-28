@@ -5,7 +5,7 @@ import time
 import logging
 
 class Throttle:
-    """Throttle for an asyncio stream"""
+    """Throttle for IO operations"""
 
     def __init__(self, rate_limit, interval=1.0, loop=None):
         """
@@ -86,7 +86,17 @@ class Throttle:
         yield from asyncio.sleep(time_left)
 
 class ThrottledStreamReader:
+    """Throttled wrapper for asyncio.StreamReader or subclasses"""
+
     def __init__(self, base_stream, rate_limit, interval=1.0):
+        """
+        :param base_stream: the reading stream to wrap and throttle
+        :type: asyncio.StreamReader or subclass
+        :param rate_limit: the maximum amount of bytes per interval
+        :type: int
+        :param interval: the time period for rate_limit
+        :type: float
+        """
         self._throttle = Throttle(rate_limit, interval)
         self._base_stream = base_stream
         self._transport = None
