@@ -17,13 +17,6 @@ class Throttle:
         :param interval: the limitation time frame (usually one second)
         :type: float
         """
-        if base_stream is None:
-            raise ValueError("base_stream must not be None")
-        if byte_limit < 1:
-            raise ValueError("byte_limit must be a positive integer")
-        if interval <= 0.0:
-            raise ValueError("interval must be positive")
-
         self.rate_limit = rate_limit
         self.interval = interval
         self._base_stream = base_stream
