@@ -87,71 +87,79 @@ class Throttle:
 
 class ThrottledFlowControlStreamReader(aiohttp.StreamReader):
 
-    def __init__(self, stream, limit=DEFAULT_LIMIT, *args, **kwargs):
+    def __init__(
+            self, stream,
+            rate_limit, interval=1.0,
+            buffer_limit=2**16, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self._throttle = Throttle(
+            rate_limit, interval, loop=kwargs.get("loop"))
         self._stream = stream
-        self._b_limit = limit * 2
+        self._b_limit = buffer_limit * 2
 
         # resume transport reading
         if stream.paused:
             try:
                 self._stream.transport.resume_reading()
-            except (AttributeError, NotImplementedError):
+            except AttributeError:
                 pass
 
+    def _try_pause(self):
+        try:
+            self._stream.transport.pause_reading()
+        except AttributeError:
+            pass
+        else:
+            self._stream.paused = True
+
+    def _try_resume(self):
+        try:
+            self._stream.transport.resume_reading()
+        except AttributeError:
+            pass
+        else:
+            self._stream.paused = False
+
     def feed_data(self, data, size=0):
-        has_waiter = self._waiter is not None and not self._waiter.cancelled()
+        has_waiter = (
+            self._waiter is not None and not self._waiter.cancelled())
 
         super().feed_data(data)
 
-        if (not self._stream.paused and
+        if (
+                not self._stream.paused and
                 not has_waiter and len(self._buffer) > self._b_limit):
-            try:
-                self._stream.transport.pause_reading()
-            except (AttributeError, NotImplementedError):
-                pass
-            else:
-                self._stream.paused = True
+            self._try_pause()
 
     def _maybe_resume(self):
         size = len(self._buffer)
         if self._stream.paused:
             if size < self._b_limit:
-                try:
-                    self._stream.transport.resume_reading()
-                except (AttributeError, NotImplementedError):
-                    pass
-                else:
-                    self._stream.paused = False
+                self._try_resume()
         else:
             if size > self._b_limit:
-                try:
-                    self._stream.transport.pause_reading()
-                except (AttributeError, NotImplementedError):
-                    pass
-                else:
-                    self._stream.paused = True
+                self._try_pause()
 
-    @maybe_resume
+    @asyncio.coroutine
     def read(self, byte_count=-1):
         data = yield from super().read(byte_count)
         self._maybe_resume()
         return data
 
-    @maybe_resume
+    @asyncio.coroutine
     def readline(self):
         data = yield from super().readline()
         self._maybe_resume()
         return data
 
-    @maybe_resume
+    @asyncio.coroutine
     def readany(self):
         data = yield from super().readany()
         self._maybe_resume()
         return data
 
-    @maybe_resume
+    @asyncio.coroutine
     def readexactly(self, byte_count):
         data = yield from super().readexactly(byte_count)
         self._maybe_resume()
@@ -188,7 +196,6 @@ class TestReadTransport(asyncio.ReadTransport):
         self._bytes_fed += self._chunk_size
 
         if self._bytes_fed >= self._total_size:
-            self._protocol.eof_received()
             self.close()
         elif not self._paused:
             self._schedule_data_feeding()
@@ -223,6 +230,7 @@ class TestReadTransport(asyncio.ReadTransport):
     def close(self):
         if self._closed:
             return
+        self._protocol.eof_received()
         self._protocol.connection_lost(None)
         self.pause_reading()
         self._closed = True
@@ -242,31 +250,36 @@ def run_reader_test():
         logging.debug("[test] got transport closed callback")
         closed_waiter.set_result(None)
 
-    base_reader = asyncio.StreamReader()
-    reader = ThrottledStreamReader(base_reader, rate_limit=40)
+    stream = aiohttp.StreamParser()
+    reader = ThrottledFlowControlStreamReader(stream, rate_limit=40)
 
-    protocol = asyncio.StreamReaderProtocol(reader)
+    protocol = asyncio.StreamReaderProtocol(stream)
 
     transport = TestReadTransport(
         protocol, total_size=1024, chunk_size=100)
     transport.closed_callback = transport_closed
     transport.open()
 
-    data = b"0"
+    read_more = True
     attempt = 0
     amount = 0
-    start_time = time.time()
-    while len(data) != 0:
+    loop = asyncio.get_event_loop()
+    start_time = loop.time()
+    while read_more:
         data = yield from reader.read(200)
+        data_len = len(data)
+
         logging.debug(
             "[test] read attempt %d: read %d bytes",
-            attempt, len(data))
+            attempt, data_len)
         attempt += 1
-        amount += len(data)
+        amount += data_len
+
+        read_more = data_len != 0
 
     logging.info(
         "[test] reading rate: %.3f bytes per second",
-        amount / (time.time() - start_time))
+        amount / (loop.time() - start_time))
 
     yield from closed_waiter
 
