@@ -3,7 +3,8 @@
 import asyncio
 import aiohttp
 import logging
-from .throttle import Throttle, ThrottledFlowControlStreamReader
+from .throttle import ThrottledFlowControlStreamReader
+
 
 class TestReadTransport(asyncio.ReadTransport):
     def __init__(
@@ -78,6 +79,7 @@ class TestReadTransport(asyncio.ReadTransport):
             self._loop.call_soon(self.closed_callback)
         logging.debug("[transport] closed")
 
+
 @asyncio.coroutine
 def run_reader_test():
     # test transport: write 1024 bytes, 100 bytes per second
@@ -122,6 +124,7 @@ def run_reader_test():
         amount / (loop.time() - start_time))
 
     yield from closed_waiter
+
 
 def main():
     logging.basicConfig(

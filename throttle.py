@@ -3,6 +3,7 @@ import asyncio
 import aiohttp
 import logging
 
+
 class Throttle:
     """Throttle for IO operations"""
 
@@ -83,6 +84,7 @@ class Throttle:
         time_left = self.time_left()
         logging.debug("[throttle] sleeping for %.3f seconds", time_left)
         yield from asyncio.sleep(time_left)
+
 
 class ThrottledFlowControlStreamReader(aiohttp.StreamReader):
 
