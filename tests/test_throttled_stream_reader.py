@@ -9,7 +9,7 @@ from aiothrottle import ThrottledStreamReader
 class TestReadTransport(asyncio.ReadTransport):
     def __init__(
             self, protocol,
-            total_size, chunk_size, interval=1.0):
+            total_size, chunk_size, interval=1.0, loop=None):
         super().__init__()
         self._protocol = protocol
         self._total_size = total_size
@@ -17,7 +17,7 @@ class TestReadTransport(asyncio.ReadTransport):
         self._interval = interval
         self._paused = False
         self._closed = False
-        self._loop = asyncio.get_event_loop()
+        self._loop = loop or asyncio.get_event_loop()
         self._feed_handle = None
         self._bytes_fed = 0
         self.closed_callback = None
