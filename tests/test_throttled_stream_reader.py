@@ -92,20 +92,19 @@ def run_reader_test():
         logging.debug("[test] got transport closed callback")
         closed_waiter.set_result(None)
 
-    stream = aiohttp.StreamParser()
-    reader = ThrottledStreamReader(stream, rate_limit=40)
+    loop = asyncio.get_event_loop()
 
-    protocol = asyncio.StreamReaderProtocol(stream)
+    protocol = aiohttp.StreamProtocol(loop=loop)
+    reader = ThrottledStreamReader(protocol.reader, rate_limit=40, loop=loop)
 
     transport = TestReadTransport(
-        protocol, total_size=1024, chunk_size=100)
+        protocol, total_size=1024, chunk_size=100, loop=loop)
     transport.closed_callback = transport_closed
     transport.open()
 
     read_more = True
     attempt = 0
     amount = 0
-    loop = asyncio.get_event_loop()
     start_time = loop.time()
     while read_more:
         data = yield from reader.read(200)
