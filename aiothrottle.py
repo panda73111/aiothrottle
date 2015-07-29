@@ -88,7 +88,7 @@ class Throttle:
 class ThrottledStreamReader:
     """Throttled wrapper for asyncio.StreamReader or subclasses"""
 
-    def __init__(self, reader, rate_limit, interval=1.0):
+    def __init__(self, reader, rate_limit, interval=1.0, flush_closed=True):
         """
         :param reader: the reading stream to wrap and throttle
         :type: asyncio.StreamReader or subclass
@@ -96,11 +96,14 @@ class ThrottledStreamReader:
         :type: int
         :param interval: the time period for rate_limit
         :type: float
+        :param flush_closed: flush the closed stream or read it throttled
+        :type: bool
         """
         self._throttle = Throttle(rate_limit, interval)
         self._reader = reader
         self._transport = None
         self._eof = False
+        self.flush_closed = flush_closed
 
     def exception(self):
         return self._reader.exception
@@ -139,7 +142,7 @@ class ThrottledStreamReader:
                 not reader.at_eof() and
                 (n < 0 or bytes_left > 0)):
 
-            if self._eof:
+            if self._eof and self.flush_closed:
                 to_read = -1
             else:
                 to_read = self._throttle.allowed_io()
