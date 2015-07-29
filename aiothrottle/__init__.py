@@ -1,4 +1,4 @@
 
-from .throttle import Throttle, ThrottledFlowControlStreamReader
+from .throttle import Throttle, ThrottledStreamReader
 
 __all__ = ("Throttle", "ThrottledFlowControlStreamReader")

@@ -86,7 +86,7 @@ class Throttle:
         yield from asyncio.sleep(time_left)
 
 
-class ThrottledFlowControlStreamReader(aiohttp.StreamReader):
+class ThrottledStreamReader(aiohttp.StreamReader):
 
     def __init__(
             self, stream, rate_limit, interval=1.0,
