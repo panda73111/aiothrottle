@@ -2,7 +2,6 @@
 
 import asyncio
 import aiohttp
-import time
 import logging
 
 class Throttle:
@@ -31,7 +30,7 @@ class Throttle:
         :rtype: None
         """
         self._io_in_interv = 0
-        self._interv_start = timestamp if timestamp >= 0 else time.time()
+        self._interv_start = timestamp if timestamp >= 0 else self._loop.time()
         logging.debug("[throttle] reset interval")
 
     def time_left(self):
@@ -42,7 +41,7 @@ class Throttle:
         :returns: seconds left until the interval ends
         :rtype: float
         """
-        now = time.time()
+        now = self._loop.time()
         if now - self._interv_start > self.interval:
             logging.debug("[throttle] seconds left: 0")
             return 0
