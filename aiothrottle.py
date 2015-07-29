@@ -88,13 +88,13 @@ class Throttle:
 class ThrottledFlowControlStreamReader(aiohttp.StreamReader):
 
     def __init__(
-            self, stream,
-            rate_limit, interval=1.0,
-            buffer_limit=2**16, *args, **kwargs):
+            self, stream, rate_limit, interval=1.0,
+            buffer_limit=2**16, loop=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self._loop = loop or asyncio.get_event_loop()
         self._throttle = Throttle(
-            rate_limit, interval, loop=kwargs.get("loop"))
+            rate_limit, interval, self._loop)
         self._stream = stream
         self._b_limit = buffer_limit * 2
 
@@ -143,24 +143,28 @@ class ThrottledFlowControlStreamReader(aiohttp.StreamReader):
 
     @asyncio.coroutine
     def read(self, byte_count=-1):
+        logging.debug("reading %d bytes", byte_count)
         data = yield from super().read(byte_count)
         self._maybe_resume()
         return data
 
     @asyncio.coroutine
     def readline(self):
+        logging.debug("reading line")
         data = yield from super().readline()
         self._maybe_resume()
         return data
 
     @asyncio.coroutine
     def readany(self):
+        logging.debug("reading anything")
         data = yield from super().readany()
         self._maybe_resume()
         return data
 
     @asyncio.coroutine
     def readexactly(self, byte_count):
+        logging.debug("reading exactly %d bytes", byte_count)
         data = yield from super().readexactly(byte_count)
         self._maybe_resume()
         return data
