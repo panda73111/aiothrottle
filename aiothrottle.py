@@ -130,17 +130,17 @@ class ThrottledStreamReader:
         return (yield from self._reader.readline())
 
     @asyncio.coroutine
-    def read(self, n=-1):
-        if not n:
+    def read(self, byte_count=-1):
+        if not byte_count:
             return b""
 
         data = bytearray()
-        bytes_left = n
+        bytes_left = byte_count
         reader = self._reader
 
         while (
                 not reader.at_eof() and
-                (n < 0 or bytes_left > 0)):
+                (byte_count < 0 or bytes_left > 0)):
 
             if self._eof and self.flush_closed:
                 to_read = -1
@@ -172,8 +172,8 @@ class ThrottledStreamReader:
         return bytes(data)
 
     @asyncio.coroutine
-    def readexactly(self, n):
-        return (yield from self._reader.readexactly(n))
+    def readexactly(self, byte_count):
+        return (yield from self._reader.readexactly(byte_count))
 
 class TestReadTransport(asyncio.ReadTransport):
     def __init__(
