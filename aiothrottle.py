@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import asyncio
+import aiohttp
 import time
 import logging
 
@@ -85,95 +86,77 @@ class Throttle:
         logging.debug("[throttle] sleeping for %.3f seconds", time_left)
         yield from asyncio.sleep(time_left)
 
-class ThrottledStreamReader:
-    """Throttled wrapper for asyncio.StreamReader or subclasses"""
+class ThrottledFlowControlStreamReader(aiohttp.StreamReader):
 
-    def __init__(self, reader, rate_limit, interval=1.0, flush_closed=True):
-        """
-        :param reader: the reading stream to wrap and throttle
-        :type: asyncio.StreamReader or subclass
-        :param rate_limit: the maximum amount of bytes per interval
-        :type: int
-        :param interval: the time period for rate_limit
-        :type: float
-        :param flush_closed: flush the closed stream or read it throttled
-        :type: bool
-        """
-        self._throttle = Throttle(rate_limit, interval)
-        self._reader = reader
-        self._transport = None
-        self._eof = False
-        self.flush_closed = flush_closed
+    def __init__(self, stream, limit=DEFAULT_LIMIT, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    def exception(self):
-        return self._reader.exception
+        self._stream = stream
+        self._b_limit = limit * 2
 
-    def set_exception(self, exc):
-        self._reader.set_exception(exc)
+        # resume transport reading
+        if stream.paused:
+            try:
+                self._stream.transport.resume_reading()
+            except (AttributeError, NotImplementedError):
+                pass
 
-    def set_transport(self, transport):
-        self._reader.set_transport(transport)
-        self._transport = transport
+    def feed_data(self, data, size=0):
+        has_waiter = self._waiter is not None and not self._waiter.cancelled()
 
-    def feed_eof(self):
-        self._reader.feed_eof()
-        self._eof = True
+        super().feed_data(data)
 
-    def at_eof(self):
-        return self._reader.at_eof()
-
-    def feed_data(self, data):
-        self._reader.feed_data(data)
-
-    @asyncio.coroutine
-    def readline(self):
-        return (yield from self._reader.readline())
-
-    @asyncio.coroutine
-    def read(self, byte_count=-1):
-        if not byte_count:
-            return b""
-
-        data = bytearray()
-        bytes_left = byte_count
-        reader = self._reader
-
-        while (
-                not reader.at_eof() and
-                (byte_count < 0 or bytes_left > 0)):
-
-            if self._eof and self.flush_closed:
-                to_read = -1
+        if (not self._stream.paused and
+                not has_waiter and len(self._buffer) > self._b_limit):
+            try:
+                self._stream.transport.pause_reading()
+            except (AttributeError, NotImplementedError):
+                pass
             else:
-                to_read = self._throttle.allowed_io()
+                self._stream.paused = True
 
-                if to_read == 0:
-                    # no more data allowed in this interval
-                    self._transport.pause_reading()
-                    yield from self._throttle.wait_remaining()
-                    self._transport.resume_reading()
+    def _maybe_resume(self):
+        size = len(self._buffer)
+        if self._stream.paused:
+            if size < self._b_limit:
+                try:
+                    self._stream.transport.resume_reading()
+                except (AttributeError, NotImplementedError):
+                    pass
+                else:
+                    self._stream.paused = False
+        else:
+            if size > self._b_limit:
+                try:
+                    self._stream.transport.pause_reading()
+                except (AttributeError, NotImplementedError):
+                    pass
+                else:
+                    self._stream.paused = True
 
-                    to_read = self._throttle.allowed_io()
+    @maybe_resume
+    def read(self, byte_count=-1):
+        data = yield from super().read(byte_count)
+        self._maybe_resume()
+        return data
 
-            if bytes_left > 0:
-                to_read = min(to_read, bytes_left)
+    @maybe_resume
+    def readline(self):
+        data = yield from super().readline()
+        self._maybe_resume()
+        return data
 
-            logging.debug(
-                "[reader] attempting to read %d bytes", to_read)
+    @maybe_resume
+    def readany(self):
+        data = yield from super().readany()
+        self._maybe_resume()
+        return data
 
-            chunk = yield from reader.read(to_read)
-            data.extend(chunk)
-
-            data_len = len(chunk)
-            logging.debug("[reader] read chunk of size %d", data_len)
-            self._throttle.add_io(data_len)
-            bytes_left -= data_len
-
-        return bytes(data)
-
-    @asyncio.coroutine
+    @maybe_resume
     def readexactly(self, byte_count):
-        return (yield from self._reader.readexactly(byte_count))
+        data = yield from super().readexactly(byte_count)
+        self._maybe_resume()
+        return data
 
 class TestReadTransport(asyncio.ReadTransport):
     def __init__(
