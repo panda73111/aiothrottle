@@ -3,7 +3,7 @@
 import asyncio
 import aiohttp
 import logging
-from .throttle import ThrottledFlowControlStreamReader
+from aiothrottle import ThrottledStreamReader
 
 
 class TestReadTransport(asyncio.ReadTransport):
@@ -93,7 +93,7 @@ def run_reader_test():
         closed_waiter.set_result(None)
 
     stream = aiohttp.StreamParser()
-    reader = ThrottledFlowControlStreamReader(stream, rate_limit=40)
+    reader = ThrottledStreamReader(stream, rate_limit=40)
 
     protocol = asyncio.StreamReaderProtocol(stream)
 
