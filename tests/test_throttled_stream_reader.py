@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import asyncio
-import aiohttp
 import logging
 from aiothrottle import ThrottledStreamReader
 
@@ -80,6 +79,42 @@ class TestReadTransport(asyncio.ReadTransport):
         logging.debug("[transport] closed")
 
 
+class TestProtocol(asyncio.streams.FlowControlMixin, asyncio.Protocol):
+    """Helper class to adapt between Transport and StreamReader."""
+
+    def __init__(self, loop=None):
+        super().__init__(loop=loop)
+
+        self.transport = None
+        self.paused = False
+        self.reader = None
+
+    def is_connected(self):
+        return self.transport is not None
+
+    def set_reader(self, reader):
+        self.reader = reader
+
+    def connection_made(self, transport):
+        self.transport = transport
+
+    def connection_lost(self, exc):
+        self.transport = None
+
+        if exc is None:
+            self.reader.feed_eof()
+        else:
+            self.reader.set_exception(exc)
+
+        super().connection_lost(exc)
+
+    def data_received(self, data):
+        self.reader.feed_data(data)
+
+    def eof_received(self):
+        self.reader.feed_eof()
+
+
 @asyncio.coroutine
 def run_reader_test():
     # test transport: write 1024 bytes, 100 bytes per second
@@ -94,8 +129,9 @@ def run_reader_test():
 
     loop = asyncio.get_event_loop()
 
-    protocol = aiohttp.StreamProtocol(loop=loop)
-    reader = ThrottledStreamReader(protocol.reader, rate_limit=40, loop=loop)
+    protocol = TestProtocol(loop=loop)
+    reader = ThrottledStreamReader(protocol, rate_limit=40, loop=loop)
+    protocol.set_reader(reader)
 
     transport = TestReadTransport(
         protocol, total_size=1024, chunk_size=100, loop=loop)
