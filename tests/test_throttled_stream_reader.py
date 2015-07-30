@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import sys
 from aiothrottle import ThrottledStreamReader
 
 
@@ -72,7 +73,6 @@ class TestReadTransport(asyncio.ReadTransport):
             return
         self._protocol.eof_received()
         self._protocol.connection_lost(None)
-        self.pause_reading()
         self._closed = True
         if self.closed_callback is not None:
             self._loop.call_soon(self.closed_callback)
@@ -165,7 +165,8 @@ def main():
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s",
-        datefmt="%H:%M:%S")
+        datefmt="%H:%M:%S",
+        stream=sys.stdout)
     loop = asyncio.get_event_loop()
 
     print("started")
