@@ -102,7 +102,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         # resume transport reading
         if stream.paused:
             try:
-                self._stream.transport.resume_reading()
+                stream.transport.resume_reading()
             except AttributeError:
                 pass
 
