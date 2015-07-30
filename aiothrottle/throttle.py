@@ -98,6 +98,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             rate_limit, interval, self._loop)
         self._stream = stream
         self._b_limit = buffer_limit * 2
+        self._bytes_fed = 0
 
         # resume transport reading
         if stream.paused:
@@ -128,12 +129,31 @@ class ThrottledStreamReader(aiohttp.StreamReader):
 
         super().feed_data(data)
 
+        # watch the buffer limit
         if (
                 not self._stream.paused and
                 not has_waiter and len(self._buffer) > self._b_limit):
             self._try_pause()
+            return
 
-    def _maybe_resume(self):
+        # watch the rate limit
+        data_len = len(data)
+        allowed = self._throttle.allowed_io()
+        if allowed - data_len <= 0:
+            self._try_pause()
+            time_left = self._throttle.time_left()
+            self._loop.call_later(time_left, self._check_limits)
+
+    def _check_limits(self):
+        # watch the rate limit
+        allowed = self._throttle.allowed_io()
+        if allowed - self._bytes_fed <= 0:
+            self._bytes_fed += self._throttle.rate_limit
+            time_left = self._throttle.time_left()
+            self._loop.call_later(time_left, self._check_limits)
+            return
+
+        # watch the buffer limit
         size = len(self._buffer)
         if self._stream.paused:
             if size < self._b_limit:
@@ -146,26 +166,26 @@ class ThrottledStreamReader(aiohttp.StreamReader):
     def read(self, byte_count=-1):
         logging.debug("reading %d bytes", byte_count)
         data = yield from super().read(byte_count)
-        self._maybe_resume()
+        self._check_limits()
         return data
 
     @asyncio.coroutine
     def readline(self):
         logging.debug("reading line")
         data = yield from super().readline()
-        self._maybe_resume()
+        self._check_limits()
         return data
 
     @asyncio.coroutine
     def readany(self):
         logging.debug("reading anything")
         data = yield from super().readany()
-        self._maybe_resume()
+        self._check_limits()
         return data
 
     @asyncio.coroutine
     def readexactly(self, byte_count):
         logging.debug("reading exactly %d bytes", byte_count)
         data = yield from super().readexactly(byte_count)
-        self._maybe_resume()
+        self._check_limits()
         return data
