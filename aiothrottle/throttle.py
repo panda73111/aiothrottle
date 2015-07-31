@@ -7,7 +7,7 @@ import logging
 class Throttle:
     """Throttle for IO operations"""
 
-    def __init__(self, rate_limit, interval=1.0, loop=None):
+    def __init__(self, rate_limit, loop=None):
         """
         :param rate_limit: the limit in bytes to read/write per interval
         :type: int
@@ -15,54 +15,21 @@ class Throttle:
         :type: float
         """
         self.rate_limit = rate_limit
-        self.interval = interval
-        self._io_in_interv = 0
+        self._io = 0
         if loop is None:
             loop = asyncio.get_event_loop()
         self._loop = loop
         self._interv_start = loop.time()
 
-    def _reset_interval(self, timestamp=-1):
-        """starts a new interval at the given timestamp
-
-        :param timestamp: the timestamp in seconds of the interval start
-        :type: float
-        :rtype: None
-        """
-        self._io_in_interv = min(self._io_in_interv - self.rate_limit, 0)
-        self._interv_start = timestamp if timestamp >= 0 else self._loop.time()
-        logging.debug("[throttle] reset interval")
-
     def time_left(self):
-        """returns the number of seconds left in the current interval
+        """returns the number of seconds left until the rate limit is reached
 
-        If the interval has already passed, this returns 0.
-
-        :returns: seconds left until the interval ends
+        :returns: seconds left until the rate limit is reached
         :rtype: float
         """
-        now = self._loop.time()
-        if now - self._interv_start >= self.interval:
-            logging.debug("[throttle] seconds left: 0")
-            return 0
-
-        remaining = self.interval - (now - self._interv_start)
-        logging.debug("[throttle] seconds left: %.3f", remaining)
+        remaining = self._io / self.rate_limit
+        logging.debug("[throttle] time remaining: %.3f", remaining)
         return remaining
-
-    def allowed_io(self):
-        """checks if a requested IO action is allowed
-
-        If this returns a negative number of bytes, more bytes
-        than allowed were read/written during the past intervals
-        :returns: number of bytes allowed to read/write
-        :rtype: int
-        """
-        if self.time_left() == 0:
-            self._reset_interval()
-        allowed = self.rate_limit - self._io_in_interv
-        logging.debug("[throttle] allowed bytes: %d", allowed)
-        return allowed
 
     def add_io(self, byte_count):
         """registers a number of bytes read/written
@@ -71,16 +38,23 @@ class Throttle:
         :type: int
         :rtype: None
         """
-        self._io_in_interv += byte_count
+        self._io += byte_count
         logging.debug(
             "[throttle] added bytes: %d, now: %d",
-            byte_count, self._io_in_interv)
+            byte_count, self._io)
+
+    def reset_io(self):
+        """resets the registered IO actions
+
+        :rtype: None
+        """
+        self._io = 0
+        logging.debug("[throttle] reset IO")
 
     @asyncio.coroutine
     def wait_remaining(self):
-        """waits until the current interval has passed
+        """waits until the rate limit is reached
 
-        This makes sure a new IO action is allowed
         :rtype: None
         """
         time_left = self.time_left()
@@ -91,13 +65,12 @@ class Throttle:
 class ThrottledStreamReader(aiohttp.StreamReader):
 
     def __init__(
-            self, stream, rate_limit, interval=1.0,
+            self, stream, rate_limit,
             buffer_limit=2**16, loop=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self._loop = loop or asyncio.get_event_loop()
-        self._throttle = Throttle(
-            rate_limit, interval, self._loop)
+        self._throttle = Throttle(rate_limit, self._loop)
         self._stream = stream
         self._b_limit = buffer_limit * 2
         self._check_handle = None
@@ -131,39 +104,27 @@ class ThrottledStreamReader(aiohttp.StreamReader):
 
     def feed_data(self, data, size=0):
         super().feed_data(data)
+        self._throttle.reset_io()
         self._throttle.add_io(len(data))
         self._check_limits()
+
+    def _check_callback(self):
+        self._check_handle = None
+        self._try_resume()
 
     def _check_limits(self):
         if self._check_handle is not None:
             self._check_handle.cancel()
-        self._check_handle = None
 
-        # watch the rate limit
-        allowed = self._throttle.allowed_io()
-
-        logging.debug("[reader] bytes left to throttle: %d", allowed)
-        if allowed <= 0:
-            logging.debug("[reader] no reading allowed, throtteling")
-
-            # wait for intervals until
-            # (bytes fed)/(time passed)=(target rate)
-            self._try_pause()
-
-            time_left = self._throttle.time_left()
-            logging.debug("[reader] checking again in %.3f seconds", time_left)
-            self._check_handle = self._loop.call_later(
-                time_left, self._check_limits)
-            return
+        self._try_pause()
 
         # watch the buffer limit
-        size = len(self._buffer)
-        if self._stream.paused:
-            if size < self._b_limit:
-                self._try_resume()
-        else:
-            if size > self._b_limit:
-                self._try_pause()
+        buf_size = len(self._buffer)
+        if buf_size < self._b_limit:
+
+            # resume as soon as the target rate is reached
+            self._check_handle = self._loop.call_later(
+                self._throttle.time_left(), self._check_callback)
 
     @asyncio.coroutine
     def read(self, byte_count=-1):

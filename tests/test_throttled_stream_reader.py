@@ -64,8 +64,8 @@ class TestReadTransport(asyncio.ReadTransport):
             raise RuntimeError("closed")
         if not self._paused:
             raise RuntimeError("not paused")
-        self._schedule_data_feeding()
         self._paused = False
+        self._feed_data()
         logging.debug("[transport] resumed")
 
     def close(self):
