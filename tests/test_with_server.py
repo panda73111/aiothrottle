@@ -8,22 +8,24 @@ import aiothrottle
 from aiohttp import web
 
 
-@asyncio.coroutine
-def stream_response(req, res):
-    res.enable_chunked_encoding()
-    res.start(req)
-    for _ in range(1024):
-        logging.debug("[server] sending 1 KB")
-        res.write(bytes(1024))
-        yield from res.drain()
-    yield from res.write_eof()
+class TestResponse(aiohttp.web_reqrep.StreamResponse):
+    def __init__(self):
+        super().__init__()
+        self.enable_chunked_encoding()
+
+    @asyncio.coroutine
+    def write_eof(self):
+        logging.debug("[server] starting to send 10 MB")
+        for _ in range(10 * 1024):
+            logging.debug("[server] sending 1 KB")
+            self.write(bytes(1024))
+            yield from self.drain()
+        yield from super().write_eof()
 
 
 @asyncio.coroutine
-def reply(req):
-    res = web.StreamResponse()
-    asyncio.async(stream_response(req, res))
-    return res
+def reply(_):
+    return TestResponse()
 
 
 def setup_server(loop, port):
@@ -52,20 +54,24 @@ def run_throttle_test(loop, port):
     if start_time == end_time:
         logging.debug("[test] no time passed!")
     else:
+        bps = amount / (loop.time() - start_time)
         logging.info(
-            "[test] reading rate: %.3f bytes per second",
-            amount / (loop.time() - start_time))
+            "[test] reading rate: %.3f KB per second",
+            bps / 1024)
 
 
 def main():
     logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s - %(levelname)s - %(message)s",
+        level=logging.DEBUG, # .INFO,
+        format="%(asctime)s.%(msecs)03d - %(levelname)s - %(message)s",
         datefmt="%H:%M:%S",
-        stream=sys.stdout)
+        # stream=sys.stdout,
+        filename=r"R:\output.txt"
+        )
 
+    # throttle to 500 KB/s
     partial = functools.partial(
-        aiothrottle.ThrottledStreamReader, rate_limit=40)
+        aiothrottle.ThrottledStreamReader, rate_limit=500 * 1024)
     aiohttp.client_reqrep.ClientResponse.flow_control_class = partial
 
     loop = asyncio.get_event_loop()
