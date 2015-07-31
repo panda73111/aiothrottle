@@ -91,6 +91,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             pass
         else:
             self._stream.paused = True
+            logging.debug("[reader] paused")
 
     def _try_resume(self):
         if not self._stream.paused:
@@ -101,8 +102,10 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             pass
         else:
             self._stream.paused = False
+            logging.debug("[reader] resumed")
 
     def feed_data(self, data, size=0):
+        logging.debug("[reader] got fed %d bytes", len(data))
         super().feed_data(data)
         self._throttle.reset_io()
         self._throttle.add_io(len(data))
