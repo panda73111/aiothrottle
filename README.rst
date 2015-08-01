@@ -1,6 +1,15 @@
 Throttling, flow controlling StreamReader for aiohttp
 =====================================================
 
+.. image:: https://img.shields.io/pypi/v/aiothrottle.svg
+    :target: https://pypi.python.org/pypi/aiothrottle
+
+.. image:: https://img.shields.io/pypi/pyversions/aiothrottle.svg
+    :target: https://www.python.org/
+
+.. image:: https://img.shields.io/pypi/l/aiothrottle.svg
+    :target: http://opensource.org/licenses/GPL-3.0
+
 Requirements
 ------------
 
@@ -16,7 +25,7 @@ License
 
 
 Source code
-------------
+-----------
 
 The latest developer version is available in a github repository:
 https://github.com/panda73111/aiothrottle
