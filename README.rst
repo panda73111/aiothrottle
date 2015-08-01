@@ -25,7 +25,7 @@ https://github.com/panda73111/aiothrottle
 Usage
 -----
 
-.. code-block:: python
+.. code:: python
 
     import functools
     import aiohttp
