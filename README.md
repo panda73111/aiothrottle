@@ -1,7 +1,7 @@
 # aiothrottle
 Throttled flow controlling StreamReader for aiohttp
 
-#Usage:
+#Usage
 ```python
 import functools
 import aiohttp
@@ -23,4 +23,8 @@ with open("largefile.zip", "wb") as file:
         file.write(chunk)
         read_next = len(chunk) != 0
 response.close()
+
+# unset the rate limit
+aiohttp.client_reqrep.ClientResponse.flow_control_class = (
+    aiohttp.streams.FlowControlStreamReader)
 ```
