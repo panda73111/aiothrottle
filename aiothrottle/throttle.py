@@ -18,8 +18,7 @@ class Throttle:
 
     def __init__(self, rate_limit, loop=None):
         """
-        :param rate_limit: the limit in bytes to read/write per interval
-        :type: int
+        :param int rate_limit: the limit in bytes to read/write per interval
         """
         self.rate_limit = rate_limit
         self._io = 0
@@ -41,8 +40,7 @@ class Throttle:
     def add_io(self, byte_count):
         """registers a number of bytes read/written
 
-        :param byte_count: number of bytes to add to the current interval
-        :type: int
+        :param int byte_count: number of bytes to add to the current interval
         :rtype: None
         """
         self._io += byte_count
@@ -88,16 +86,12 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         """
         :param stream: the base stream containing the transport
         :type: aiohttp.parsers.StreamParser
-        :param rate_limit: the rate limit in bytes per second
-        :type: int
-        :param buffer_limit: the internal buffer limit in bytes
-        :type: int
+        :param int rate_limit: the rate limit in bytes per second
+        :param int buffer_limit: the internal buffer limit in bytes
         :param loop: the asyncio event loop
         :type: asyncio.base_events.BaseEventLoop
-        :param args: arguments passed through to StreamReader
-        :type: tuple
-        :param kwargs: keyword arguments passed through to StreamReader
-        :type: dict
+        :param tuple args: arguments passed through to StreamReader
+        :param dict kwargs: keyword arguments passed through to StreamReader
         :rtype: None
         """
         super().__init__(*args, **kwargs)
@@ -186,8 +180,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
     def read(self, byte_count=-1):
         """Reads at most the requested number of bytes from the internal buffer
 
-        :param byte_count: the number of bytes to read
-        :type: int
+        :param int byte_count: the number of bytes to read
         :returns: the data
         :rtype: bytes
         """
@@ -227,8 +220,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         This raises asyncio.streams.IncompleteReadError if
         the stream ended before enough bytes were received
 
-        :param byte_count: the number of bytes to read
-        :type: int
+        :param int byte_count: the number of bytes to read
         :returns: the data
         :rtype: bytes
         """
