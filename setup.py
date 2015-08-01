@@ -16,7 +16,7 @@ setup(
     license="GPLv3",
     author="Sebastian H\xfcther",
     author_email="sebastian.huether@gmx.de",
-    description="Throttled flow controlling StreamReader for aiohttp",
+    description="Throttling, flow controlling StreamReader for aiohttp",
     install_requires=install_requires,
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -24,6 +24,8 @@ setup(
         "Topic :: Internet :: WWW/HTTP",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)"
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.3",
+        "Programming Language :: Python :: 3.4",
     ],
     keywords='throttle bandwidth limit download http throughput',
 )
