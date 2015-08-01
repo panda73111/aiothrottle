@@ -8,40 +8,9 @@ import aiothrottle
 from aiohttp import web
 
 
-class TestResponse(aiohttp.web_reqrep.StreamResponse):
-    def __init__(self):
-        super().__init__()
-        self.enable_chunked_encoding()
-
-    @asyncio.coroutine
-    def write_eof(self):
-        logging.debug("[server] starting to send 10 MB")
-        for _ in range(10 * 1024):
-            logging.debug("[server] sending 1 KB")
-            self.write(bytes(1024))
-            yield from self.drain()
-        yield from super().write_eof()
-
-
 @asyncio.coroutine
-def reply(_):
-    return TestResponse()
-
-
-def setup_server(loop, port):
-    app = web.Application()
-    app.router.add_route('GET', '/', reply)
-
-    handler = app.make_handler()
-    future = loop.create_server(handler, '0.0.0.0', port)
-    srv = loop.run_until_complete(future)
-    print('serving on', srv.sockets[0].getsockname())
-    return srv, app, handler
-
-
-@asyncio.coroutine
-def run_throttle_test(loop, port):
-    res = yield from aiohttp.request("GET", "http://localhost:%d/" % port)
+def run_throttle_test(loop, url):
+    res = yield from aiohttp.request("GET", url)
     logging.debug("[test] got response: %s", res)
 
     start_time = loop.time()
@@ -54,41 +23,41 @@ def run_throttle_test(loop, port):
     if start_time == end_time:
         logging.debug("[test] no time passed!")
     else:
-        bps = amount / (loop.time() - start_time)
+        time_passed = loop.time() - start_time
+        bps = amount / time_passed
         logging.info(
-            "[test] reading rate: %.3f KB per second",
-            bps / 1024)
+            "[test] %d:%02d passed, reading rate: %.3f KB/s",
+            time_passed / 60, time_passed % 60, bps / 1024)
+
+
+@asyncio.coroutine
+def run_limit_test(loop, kbps):
+    logging.info("[test] limiting to %d KB/s", kbps)
+    partial = functools.partial(
+        aiothrottle.ThrottledStreamReader, rate_limit=kbps * 1024)
+    aiohttp.client_reqrep.ClientResponse.flow_control_class = partial
+
+    url = "http://ipv4.download.thinkbroadband.com/10MB.zip"
+    yield from run_throttle_test(loop, url)
 
 
 def main():
     logging.basicConfig(
-        level=logging.DEBUG, # .INFO,
+        level=logging.INFO,
         format="%(asctime)s.%(msecs)03d - %(levelname)s - %(message)s",
         datefmt="%H:%M:%S",
-        # stream=sys.stdout,
-        filename=r"R:\output.txt"
+        stream=sys.stdout,
+        # filename=r"R:\output.txt"
         )
 
-    # throttle to 500 KB/s
-    partial = functools.partial(
-        aiothrottle.ThrottledStreamReader, rate_limit=500 * 1024)
-    aiohttp.client_reqrep.ClientResponse.flow_control_class = partial
-
-    loop = asyncio.get_event_loop()
-
-    port = 8080
-    srv, app, handler = setup_server(loop, port)
-
     print("started")
+    loop = asyncio.get_event_loop()
     try:
-        loop.run_until_complete(run_throttle_test(loop, port))
+        for kbps in range(100, 850, 50):
+            loop.run_until_complete(run_limit_test(loop, kbps))
     except KeyboardInterrupt:
         pass
     finally:
-        loop.run_until_complete(handler.finish_connections(1.0))
-        srv.close()
-        loop.run_until_complete(srv.wait_closed())
-        loop.run_until_complete(app.finish())
         loop.close()
         print("ended")
 
