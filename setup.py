@@ -19,7 +19,7 @@ setup(
     version="0.1.0",
     packages=find_packages(),
     url="https://github.com/panda73111/aiothrottle",
-    license="GPL v3",
+    license="GPLv3",
     author="Sebastian H\xfcther",
     author_email="sebastian.huether@gmx.de",
     description="Throttling, flow controlling StreamReader for aiohttp",
