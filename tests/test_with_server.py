@@ -5,7 +5,6 @@ import aiohttp
 import functools
 import sys
 import aiothrottle
-from aiohttp import web
 
 
 @asyncio.coroutine
