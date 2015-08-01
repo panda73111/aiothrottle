@@ -4,6 +4,9 @@ import aiohttp
 import logging
 
 
+LOGGER = logging.getLogger(__package__)
+
+
 class Throttle:
     """Throttle for IO operations"""
 
@@ -11,8 +14,6 @@ class Throttle:
         """
         :param rate_limit: the limit in bytes to read/write per interval
         :type: int
-        :param interval: the limitation time frame in seconds
-        :type: float
         """
         self.rate_limit = rate_limit
         self._io = 0
@@ -28,7 +29,7 @@ class Throttle:
         :rtype: float
         """
         remaining = self._io / self.rate_limit
-        logging.debug("[throttle] time remaining: %.3f", remaining)
+        LOGGER.debug("[throttle] time remaining: %.3f", remaining)
         return remaining
 
     def add_io(self, byte_count):
@@ -39,7 +40,7 @@ class Throttle:
         :rtype: None
         """
         self._io += byte_count
-        logging.debug(
+        LOGGER.debug(
             "[throttle] added bytes: %d, now: %d",
             byte_count, self._io)
 
@@ -49,7 +50,7 @@ class Throttle:
         :rtype: None
         """
         self._io = 0
-        logging.debug("[throttle] reset IO")
+        LOGGER.debug("[throttle] reset IO")
 
     @asyncio.coroutine
     def wait_remaining(self):
@@ -58,7 +59,7 @@ class Throttle:
         :rtype: None
         """
         time_left = self.time_left()
-        logging.debug("[throttle] sleeping for %.3f seconds", time_left)
+        LOGGER.debug("[throttle] sleeping for %.3f seconds", time_left)
         yield from asyncio.sleep(time_left)
 
 
@@ -91,7 +92,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             pass
         else:
             self._stream.paused = True
-            logging.debug("[reader] paused")
+            LOGGER.debug("[reader] paused")
 
     def _try_resume(self):
         if not self._stream.paused:
@@ -102,10 +103,10 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             pass
         else:
             self._stream.paused = False
-            logging.debug("[reader] resumed")
+            LOGGER.debug("[reader] resumed")
 
     def feed_data(self, data, size=0):
-        logging.debug("[reader] got fed %d bytes", len(data))
+        LOGGER.debug("[reader] got fed %d bytes", len(data))
         super().feed_data(data)
         self._throttle.reset_io()
         self._throttle.add_io(len(data))
@@ -131,28 +132,28 @@ class ThrottledStreamReader(aiohttp.StreamReader):
 
     @asyncio.coroutine
     def read(self, byte_count=-1):
-        logging.debug("[reader] reading %d bytes", byte_count)
+        LOGGER.debug("[reader] reading %d bytes", byte_count)
         data = yield from super().read(byte_count)
         self._check_limits()
         return data
 
     @asyncio.coroutine
     def readline(self):
-        logging.debug("[reader] reading line")
+        LOGGER.debug("[reader] reading line")
         data = yield from super().readline()
         self._check_limits()
         return data
 
     @asyncio.coroutine
     def readany(self):
-        logging.debug("[reader] reading anything")
+        LOGGER.debug("[reader] reading anything")
         data = yield from super().readany()
         self._check_limits()
         return data
 
     @asyncio.coroutine
     def readexactly(self, byte_count):
-        logging.debug("[reader] reading exactly %d bytes", byte_count)
+        LOGGER.debug("[reader] reading exactly %d bytes", byte_count)
         data = yield from super().readexactly(byte_count)
         self._check_limits()
         return data
