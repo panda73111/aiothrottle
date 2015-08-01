@@ -14,8 +14,14 @@ def run_throttle_test(loop, url):
 
     start_time = loop.time()
 
-    data = yield from res.read()
-    amount = len(data)
+    read_next = True
+    amount = 0
+    while read_next:
+        # read 1 MB chunks
+        data = yield from res.content.read(2**20)
+        data_len = len(data)
+        amount += data_len
+        read_next = data_len != 0
     logging.debug("[test] read %d bytes", amount)
 
     end_time = loop.time()
