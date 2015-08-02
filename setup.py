@@ -3,6 +3,7 @@
 import os
 import sys
 from setuptools import setup, find_packages
+from aiothrottle import __version__
 
 
 install_requires = ["aiohttp"]
@@ -18,7 +19,7 @@ def read_file(filename):
 
 setup(
     name="aiothrottle",
-    version="0.1.1",
+    version=__version__,
     packages=find_packages(),
     url="https://github.com/panda73111/aiothrottle",
     download_url="https://github.com/panda73111/aiothrottle/archive/v0.1.1.tar.gz",
