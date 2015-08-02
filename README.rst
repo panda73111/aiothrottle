@@ -4,6 +4,10 @@ Throttling, flow controlling StreamReader for aiohttp
 .. image:: https://img.shields.io/pypi/v/aiothrottle.svg
     :target: https://pypi.python.org/pypi/aiothrottle
 
+.. image:: https://readthedocs.org/projects/aiothrottle/badge/?version=latest
+    :target: https://readthedocs.org/projects/aiothrottle/?badge=latest
+    :alt: Documentation Status
+
 .. image:: https://img.shields.io/pypi/pyversions/aiothrottle.svg
     :target: https://www.python.org/
 
