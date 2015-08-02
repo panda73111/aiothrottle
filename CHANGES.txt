@@ -4,7 +4,7 @@ CHANGES
 0.2.0 (XX-XX-XXXX)
 ------------------
 
-- Added limit_rate() and unlimit_rate()
+- Added limit_rate() and unlimit_rate() globally and response-wise
 
 - Raising ValueError on invalid rate limit
 
