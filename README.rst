@@ -56,3 +56,11 @@ Usage
 
     # unset the rate limit
     aiothrottle.unlimit_rate()
+
+
+TODO
+----
+
+- Unit tests
+- Upload rate limiting class
+- General socket limiting class
