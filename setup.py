@@ -35,5 +35,5 @@ setup(
         "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
     ],
-    keywords='throttle bandwidth limit download http throughput',
+    keywords="throttle bandwidth limit download http throughput asyncio aiohttp",
 )
