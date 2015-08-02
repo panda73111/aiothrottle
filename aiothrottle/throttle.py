@@ -23,7 +23,7 @@ class Throttle:
 
     def __init__(self, rate_limit, loop=None):
         """
-        :param int rate_limit: the limit in bytes to read/write per interval
+        :param int rate_limit: the limit in bytes to read/write per second
         """
         self.rate_limit = rate_limit
         self._io = 0
@@ -45,7 +45,7 @@ class Throttle:
     def add_io(self, byte_count):
         """registers a number of bytes read/written
 
-        :param int byte_count: number of bytes to add to the current interval
+        :param int byte_count: number of bytes to add to the current rate
         :rtype: None
         """
         self._io += byte_count
