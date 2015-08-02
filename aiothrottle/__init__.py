@@ -1,3 +1,6 @@
+"""
+Providing classes for limiting data rates of asyncio sockets
+"""
 
 from .throttle import Throttle, ThrottledStreamReader
 
