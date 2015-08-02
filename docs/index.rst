@@ -9,9 +9,9 @@ Contents
 --------
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
-    modules
+    aiothrottle
 
 
 Indices and tables
