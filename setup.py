@@ -21,6 +21,7 @@ setup(
     version="0.1.1",
     packages=find_packages(),
     url="https://github.com/panda73111/aiothrottle",
+    download_url="https://github.com/panda73111/aiothrottle/archive/v0.1.1.tar.gz",
     license="GPLv3",
     author="Sebastian H\xfcther",
     author_email="sebastian.huether@gmx.de",
