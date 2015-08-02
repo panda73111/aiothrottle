@@ -25,6 +25,7 @@ class Throttle:
         """
         :param int rate_limit: the limit in bytes to read/write per second
         """
+        self._rate_limit = 0
         self.rate_limit = rate_limit
         self._io = 0
         if loop is None:
@@ -32,13 +33,31 @@ class Throttle:
         self._loop = loop
         self._interv_start = loop.time()
 
+    @property
+    def rate_limit(self):
+        """
+        :returns: the limit in bytes to read/write per second
+        :rtype: int
+        """
+        return self._rate_limit
+
+    @rate_limit.setter
+    def rate_limit(self, value):
+        """
+        :param value: the limit in bytes to read/write per second
+        :raise ValueError: invalid rate given
+        """
+        if value <= 0:
+            raise ValueError("rate_limit has to be greater than 0")
+        self._rate_limit = value
+
     def time_left(self):
         """returns the number of seconds left until the rate limit is reached
 
         :returns: seconds left until the rate limit is reached
         :rtype: float
         """
-        remaining = self._io / self.rate_limit
+        remaining = self._io / self._rate_limit
         LOGGER.debug("[throttle] time remaining: %.3f", remaining)
         return remaining
 
