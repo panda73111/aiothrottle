@@ -186,11 +186,11 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         self._check_handle = None
         self._try_resume()
 
-    def _check_buffer_limit(self):
+    def _check_buffer_limit(self, resume):
         """Controls the size of the internal buffer"""
         size = len(self._buffer)
         if self._stream.paused:
-            if size < self._b_limit:
+            if resume and size < self._b_limit:
                 self._try_resume()
         else:
             if size > self._b_limit:
@@ -203,7 +203,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             self._check_handle = None
 
         if not self._limiting:
-            self._check_buffer_limit()
+            self._check_buffer_limit(True)
             return
 
         self._try_pause()
@@ -226,7 +226,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         """
         LOGGER.debug("[reader] reading %d bytes", byte_count)
         data = yield from super().read(byte_count)
-        self._check_limits()
+        self._check_buffer_limit(not self._limiting)
         return data
 
     @asyncio.coroutine
@@ -238,7 +238,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         """
         LOGGER.debug("[reader] reading line")
         data = yield from super().readline()
-        self._check_limits()
+        self._check_buffer_limit(not self._limiting)
         return data
 
     @asyncio.coroutine
@@ -250,7 +250,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         """
         LOGGER.debug("[reader] reading anything")
         data = yield from super().readany()
-        self._check_limits()
+        self._check_buffer_limit(not self._limiting)
         return data
 
     @asyncio.coroutine
@@ -266,7 +266,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         """
         LOGGER.debug("[reader] reading exactly %d bytes", byte_count)
         data = yield from super().readexactly(byte_count)
-        self._check_limits()
+        self._check_buffer_limit(not self._limiting)
         return data
 
 
