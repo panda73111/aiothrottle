@@ -1,4 +1,9 @@
 
+"""
+Throttle: Manages rate limiting for general connections
+ThrottledStreamReader: Throttles aiohttp downloads
+"""
+
 import asyncio
 import aiohttp
 import logging
@@ -68,7 +73,7 @@ class Throttle:
 
 
 class ThrottledStreamReader(aiohttp.StreamReader):
-    """Throttled flow controlling StreamReader for aiohttp
+    """Throttling, flow controlling StreamReader for aiohttp
 
     Usage:
     >>> import functools
