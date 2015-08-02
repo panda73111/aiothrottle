@@ -21,12 +21,12 @@ class Throttle:
     After that, reset_io() has to be called to measure the new rate.
     """
 
-    def __init__(self, rate_limit, loop=None):
+    def __init__(self, limit, loop=None):
         """
-        :param int rate_limit: the limit in bytes to read/write per second
+        :param int limit: the limit in bytes to read/write per second
         """
-        self._rate_limit = 0
-        self.rate_limit = rate_limit
+        self._limit = 0
+        self.limit = limit
         self._io = 0
         if loop is None:
             loop = asyncio.get_event_loop()
@@ -34,22 +34,22 @@ class Throttle:
         self._interv_start = loop.time()
 
     @property
-    def rate_limit(self):
+    def limit(self):
         """
         :returns: the limit in bytes to read/write per second
         :rtype: int
         """
-        return self._rate_limit
+        return self._limit
 
-    @rate_limit.setter
-    def rate_limit(self, value):
+    @limit.setter
+    def limit(self, value):
         """
         :param value: the limit in bytes to read/write per second
         :raise ValueError: invalid rate given
         """
         if value <= 0:
             raise ValueError("rate_limit has to be greater than 0")
-        self._rate_limit = value
+        self._limit = value
 
     def time_left(self):
         """returns the number of seconds left until the rate limit is reached
@@ -57,7 +57,7 @@ class Throttle:
         :returns: seconds left until the rate limit is reached
         :rtype: float
         """
-        remaining = self._io / self._rate_limit
+        remaining = self._io / self._limit
         LOGGER.debug("[throttle] time remaining: %.3f", remaining)
         return remaining
 
