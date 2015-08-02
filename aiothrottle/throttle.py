@@ -46,7 +46,7 @@ class Throttle:
     def limit(self, value):
         """
         :param value: the limit in bytes to read/write per second
-        :raise ValueError: invalid rate given
+        :raises ValueError: invalid rate given
         """
         if value <= 0:
             raise ValueError("rate_limit has to be greater than 0")
@@ -126,6 +126,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         self._stream = stream
         self._b_limit = buffer_limit * 2
         self._check_handle = None
+        self._limiting = True
 
         # resume transport reading
         if stream.paused:
@@ -137,6 +138,22 @@ class ThrottledStreamReader(aiohttp.StreamReader):
     def __del__(self):
         if self._check_handle is not None:
             self._check_handle.cancel()
+
+    def limit_rate(self, limit):
+        """Sets the rate limit of this response
+
+        :param limit: the limit in bytes to read/write per second
+        :rtype: None
+        """
+        self._throttle.limit = limit
+        self._limiting = True
+
+    def unlimit_rate(self):
+        """Unlimits the rate of this response
+
+        :rtype: None
+        """
+        self._limiting = False
 
     def _try_pause(self):
         """Pauses the transport if not already paused
@@ -187,6 +204,19 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         self._check_handle = None
         self._try_resume()
 
+    def _check_buffer_limit(self):
+        """Controls the size of the internal buffer
+
+        :rtype: None
+        """
+        size = len(self._buffer)
+        if self._stream.paused:
+            if size < self._b_limit:
+                self._try_resume()
+        else:
+            if size > self._b_limit:
+                self._try_pause()
+
     def _check_limits(self):
         """Controls rate and buffer size by pausing and resuming the transport
 
@@ -194,6 +224,11 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         """
         if self._check_handle is not None:
             self._check_handle.cancel()
+            self._check_handle = None
+
+        if not self._limiting:
+            self._check_buffer_limit()
+            return
 
         self._try_pause()
 
