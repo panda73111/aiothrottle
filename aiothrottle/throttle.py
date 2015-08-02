@@ -134,6 +134,10 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             except AttributeError:
                 pass
 
+    def __del__(self):
+        if self._check_handle is not None:
+            self._check_handle.cancel()
+
     def _try_pause(self):
         """Pauses the transport if not already paused
 
