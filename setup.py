@@ -12,7 +12,9 @@ if sys.version_info < (3, 4):
 
 def read_file(filename):
     path = os.path.join(os.path.dirname(__file__), filename)
-    return open(path).read().strip()
+    with open(path) as file:
+        text = file.read().strip()
+    return text
 
 setup(
     name="aiothrottle",
