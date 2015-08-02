@@ -46,7 +46,6 @@ Usage
 
 .. code:: python
 
-    import functools
     import aiohttp
     import aiothrottle
 
