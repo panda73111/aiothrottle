@@ -16,15 +16,16 @@ LOGGER = logging.getLogger(__package__)
 class Throttle:
     """Throttle for IO operations
 
-    As soon as an IO action is registered using add_io(byte_count),
-    time_left() returns the seconds to wail until
-    (byte count) / (time passed) = (rate limit).
-    After that, reset_io() has to be called to measure the new rate.
+    As soon as an IO action is registered using :meth:`add_io`,
+    :meth:`time_left` returns the seconds to wail until
+    ``[byte count] / [time passed] = [rate limit]``.
+    After that, :meth:`reset_io` has to be called to measure the new rate.
     """
 
     def __init__(self, limit, loop=None):
         """
         :param int limit: the limit in bytes to read/write per second
+        :raises: :class:`ValueError`: invalid rate given
         """
         self._limit = 0
         self.limit = limit
@@ -46,7 +47,7 @@ class Throttle:
     def limit(self, value):
         """
         :param value: the limit in bytes to read/write per second
-        :raises ValueError: invalid rate given
+        :raises: :class:`ValueError` invalid rate given
         """
         if value <= 0:
             raise ValueError("rate_limit has to be greater than 0")
@@ -66,7 +67,6 @@ class Throttle:
         """registers a number of bytes read/written
 
         :param int byte_count: number of bytes to add to the current rate
-        :rtype: None
         """
         self._io += byte_count
         LOGGER.debug(
@@ -74,35 +74,29 @@ class Throttle:
             byte_count, self._io)
 
     def reset_io(self):
-        """resets the registered IO actions
-
-        :rtype: None
-        """
+        """resets the registered IO actions"""
         self._io = 0
         LOGGER.debug("[throttle] reset IO")
 
     @asyncio.coroutine
     def wait_remaining(self):
-        """waits until the rate limit is reached
-
-        :rtype: None
-        """
+        """waits until the rate limit is reached"""
         time_left = self.time_left()
         LOGGER.debug("[throttle] sleeping for %.3f seconds", time_left)
         yield from asyncio.sleep(time_left)
 
 
 class ThrottledStreamReader(aiohttp.StreamReader):
-    """Throttling, flow controlling StreamReader for aiohttp
+    """Throttling, flow controlling :class:`aiohttp.streams.StreamReader` for :meth:`aiohttp.request`
 
     Usage:
-    >>> import functools
-    >>> import aiohttp
-    >>> import aiothrottle
-    >>> kbps = 200
-    >>> partial = functools.partial(
-    >>>     aiothrottle.ThrottledStreamReader, rate_limit=kbps * 1024)
-    >>> aiohttp.client_reqrep.ClientResponse.flow_control_class = partial
+        >>> import functools
+        >>> import aiohttp
+        >>> import aiothrottle
+        >>> kbps = 200
+        >>> partial = functools.partial(
+        >>>     aiothrottle.ThrottledStreamReader, rate_limit=kbps * 1024)
+        >>> aiohttp.client_reqrep.ClientResponse.flow_control_class = partial
     """
 
     def __init__(
@@ -117,7 +111,6 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         :type: asyncio.base_events.BaseEventLoop
         :param tuple args: arguments passed through to StreamReader
         :param dict kwargs: keyword arguments passed through to StreamReader
-        :rtype: None
         """
         super().__init__(*args, **kwargs)
 
@@ -143,7 +136,8 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         """Sets the rate limit of this response
 
         :param limit: the limit in bytes to read/write per second
-        :rtype: None
+
+        .. versionadded:: 0.1.1
         """
         self._throttle.limit = limit
         self._limiting = True
@@ -151,15 +145,12 @@ class ThrottledStreamReader(aiohttp.StreamReader):
     def unlimit_rate(self):
         """Unlimits the rate of this response
 
-        :rtype: None
+        .. versionadded:: 0.1.1
         """
         self._limiting = False
 
     def _try_pause(self):
-        """Pauses the transport if not already paused
-
-        :rtype: None
-        """
+        """Pauses the transport if not already paused"""
         if self._stream.paused:
             return
         try:
@@ -171,10 +162,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             LOGGER.debug("[reader] paused")
 
     def _try_resume(self):
-        """Resumed the transport if paused
-
-        :rtype: None
-        """
+        """Resumed the transport if paused"""
         if not self._stream.paused:
             return
         try:
@@ -186,10 +174,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             LOGGER.debug("[reader] resumed")
 
     def feed_data(self, data, _=0):
-        """Feeds data into the internal buffer
-
-        :rtype: None
-        """
+        """Feeds data into the internal buffer"""
         LOGGER.debug("[reader] got fed %d bytes", len(data))
         super().feed_data(data)
         self._throttle.reset_io()
@@ -197,18 +182,12 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         self._check_limits()
 
     def _check_callback(self):
-        """Tries to resume the transport after target limit is reached
-
-        :rtype: None
-        """
+        """Tries to resume the transport after target limit is reached"""
         self._check_handle = None
         self._try_resume()
 
     def _check_buffer_limit(self):
-        """Controls the size of the internal buffer
-
-        :rtype: None
-        """
+        """Controls the size of the internal buffer"""
         size = len(self._buffer)
         if self._stream.paused:
             if size < self._b_limit:
@@ -218,10 +197,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
                 self._try_pause()
 
     def _check_limits(self):
-        """Controls rate and buffer size by pausing and resuming the transport
-
-        :rtype: None
-        """
+        """Controls rate and buffer size by pausing and resuming the transport"""
         if self._check_handle is not None:
             self._check_handle.cancel()
             self._check_handle = None
@@ -255,7 +231,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
 
     @asyncio.coroutine
     def readline(self):
-        """Reads bytes from the internal buffer until '\n' is found
+        """Reads bytes from the internal buffer until ``\\n`` is found
 
         :returns: the data
         :rtype: bytes
@@ -281,7 +257,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
     def readexactly(self, byte_count):
         """Reads the requested number of bytes from the internal buffer
 
-        This raises asyncio.streams.IncompleteReadError if
+        This raises :class:`asyncio.IncompleteReadError` if
         the stream ended before enough bytes were received
 
         :param int byte_count: the number of bytes to read
@@ -298,7 +274,8 @@ def limit_rate(limit):
     """Limits the rate of all subsequent aiohttp requests
 
     :param limit: the limit in bytes to read/write per second
-    :rtype: None
+
+    .. versionadded:: 0.1.1
     """
     partial = functools.partial(
         ThrottledStreamReader, rate_limit=limit)
@@ -308,7 +285,7 @@ def limit_rate(limit):
 def unlimit_rate():
     """Unlimits the rate of all subsequent aiohttp requests
 
-    :rtype: None
+    .. versionadded:: 0.1.1
     """
     aiohttp.client_reqrep.ClientResponse.flow_control_class = (
         aiohttp.streams.FlowControlStreamReader)

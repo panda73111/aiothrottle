@@ -1,5 +1,7 @@
+aiothrottle
+===========
+
 Throttling, flow controlling StreamReader for aiohttp
-=====================================================
 
 .. image:: https://img.shields.io/pypi/v/aiothrottle.svg
     :target: https://pypi.python.org/pypi/aiothrottle
