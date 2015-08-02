@@ -37,14 +37,18 @@ def run_throttle_test(loop, url):
 
 
 @asyncio.coroutine
-def run_limit_test(loop, kbps):
-    logging.info("[test] limiting to %d KB/s", kbps)
-    partial = functools.partial(
-        aiothrottle.ThrottledStreamReader, rate_limit=kbps * 1024)
-    aiohttp.client_reqrep.ClientResponse.flow_control_class = partial
+def run_limit_test(loop, url, kbps=0):
+    if kbps > 0:
 
-    url = "http://ipv4.download.thinkbroadband.com/10MB.zip"
-    yield from run_throttle_test(loop, url)
+        logging.info("[test] limiting to %d KB/s", kbps)
+        aiothrottle.limit_rate(kbps * 1024)
+        yield from run_throttle_test(loop, url)
+
+    else:
+
+        logging.info("[test] unlimiting rate")
+        aiothrottle.unlimit_rate()
+        yield from run_throttle_test(loop, url)
 
 
 def main():
@@ -58,9 +62,10 @@ def main():
 
     print("started")
     loop = asyncio.get_event_loop()
+    url = "http://ipv4.download.thinkbroadband.com/10MB.zip"
     try:
-        for kbps in range(100, 850, 50):
-            loop.run_until_complete(run_limit_test(loop, kbps))
+        for kbps in (0,) + tuple(range(100, 850, 50)):
+            loop.run_until_complete(run_limit_test(loop, url, kbps))
     except KeyboardInterrupt:
         pass
     finally:
