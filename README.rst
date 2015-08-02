@@ -28,6 +28,12 @@ License
 ``aiothrottle`` is offered under the GPL v3 license.
 
 
+Documentation
+-------------
+
+https://aiothrottle.readthedocs.org/
+
+
 Source code
 -----------
 
