@@ -7,6 +7,7 @@ ThrottledStreamReader: Throttles aiohttp downloads
 import asyncio
 import aiohttp
 import logging
+import functools
 
 
 LOGGER = logging.getLogger(__package__)
@@ -252,3 +253,23 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         data = yield from super().readexactly(byte_count)
         self._check_limits()
         return data
+
+
+def limit_rate(limit):
+    """Limits the rate of all subsequent aiohttp requests
+
+    :param limit: the limit in bytes to read/write per second
+    :rtype: None
+    """
+    partial = functools.partial(
+        ThrottledStreamReader, rate_limit=limit)
+    aiohttp.client_reqrep.ClientResponse.flow_control_class = partial
+
+
+def unlimit_rate():
+    """Unlimits the rate of all subsequent aiohttp requests
+
+    :rtype: None
+    """
+    aiohttp.client_reqrep.ClientResponse.flow_control_class = (
+        aiohttp.streams.FlowControlStreamReader)
