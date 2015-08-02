@@ -6,7 +6,7 @@
 Welcome to aiothrottle's documentation!
 =======================================
 
-.. include ../README
+.. include:: ../README.rst
 
 Contents:
 
