@@ -1,7 +1,14 @@
 CHANGES
 =======
 
+0.2.0 (XX-XX-XXXX)
+------------------
+
+- Added limit_rate() and unlimit_rate()
+
+- Raising ValueError on invalid rate limit
+
 0.1.0 (08-01-2015)
----------------------
+------------------
 
 - Initial release with basic throttling functionality

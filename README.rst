@@ -40,11 +40,8 @@ Usage
     import aiohttp
     import aiothrottle
 
-    # setup the rate limit
-    kbps = 200
-    partial = functools.partial(
-        aiothrottle.ThrottledStreamReader, rate_limit=kbps * 1024)
-    aiohttp.client_reqrep.ClientResponse.flow_control_class = partial
+    # setup the rate limit to 200 KB/s
+    aiothrottle.limit_rate(200 * 1024)
 
     # download a large file without blocking bandwidth
     response = aiohttp.request("GET", "http://example.com/largefile.zip")
@@ -58,5 +55,4 @@ Usage
     response.close()
 
     # unset the rate limit
-    aiohttp.client_reqrep.ClientResponse.flow_control_class = (
-        aiohttp.streams.FlowControlStreamReader)
+    aiothrottle.unlimit_rate()
