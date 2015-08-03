@@ -11,6 +11,10 @@ Throttling, flow controlling StreamReader for aiohttp
     :target: https://travis-ci.org/panda73111/aiothrottle
     :alt: Build Status
 
+.. image:: https://coveralls.io/repos/panda73111/aiothrottle/badge.svg?branch=master&service=github
+    :target: https://coveralls.io/github/panda73111/aiothrottle?branch=master
+    :alt: Coverage Status
+
 .. image:: https://readthedocs.org/projects/aiothrottle/badge/?version=latest
     :target: https://readthedocs.org/projects/aiothrottle/?badge=latest
     :alt: Documentation Status
