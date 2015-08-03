@@ -219,7 +219,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         """resumes the transport as soon as the rate limit is reached"""
         # resume as soon as the target rate is reached
         pause_time = self._throttle.time_left()
-        LOGGER.debug("[reader] resuming in %.3f seconds")
+        LOGGER.debug("[reader] resuming in %.3f seconds", pause_time)
         self._check_handle = self._loop.call_later(
             pause_time, self._check_callback)
 
