@@ -87,9 +87,10 @@ class Throttle:
         yield from asyncio.sleep(time_left)
 
     def current_rate(self):
-        """returns the current rate, measured since the last call to :meth:`reset_io`
+        """returns the current rate, measured since :meth:`reset_io`
 
-        In case the time since the last reset is too short, this returns ``-1``.
+        In case the time since the last reset is too short,
+        this returns ``-1``.
 
         :returns: the current rate in bytes per second
         :rtype: float
@@ -113,12 +114,14 @@ class Throttle:
         """
         current = self.current_rate()
         within_limit = current < self._limit
-        LOGGER.debug("[throttle] %s rate", "within" if within_limit else "not within")
+        LOGGER.debug(
+            "[throttle] %s rate", "within" if within_limit else "not within")
         return within_limit
 
 
 class ThrottledStreamReader(aiohttp.StreamReader):
-    """Throttling, flow controlling :class:`aiohttp.streams.StreamReader` for :meth:`aiohttp.request`
+    """Throttling, flow controlling :class:`aiohttp.streams.StreamReader`
+    for :meth:`aiohttp.request`
 
     Usage:
         >>> import functools
@@ -208,12 +211,12 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         self._check_limits()
 
     def _check_callback(self):
-        """Tries to resume the transport after target limit is reached"""
+        """Tries to resume the transport after the rate limit is reached"""
         self._check_handle = None
         self._try_resume()
 
     def _schedule_resume(self):
-        """resumes the transport as soon as the current rate is within the limit"""
+        """resumes the transport as soon as the rate limit is reached"""
         # resume as soon as the target rate is reached
         pause_time = self._throttle.time_left()
         LOGGER.debug("[reader] resuming in %.3f seconds")
@@ -245,7 +248,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
                     self._check_handle = None
 
     def _check_limits(self):
-        """Controls rate and buffer size by pausing and resuming the transport"""
+        """Controls rate and buffer size by pausing/resuming the transport"""
         if self._check_handle is not None:
             self._check_handle.cancel()
             self._check_handle = None
