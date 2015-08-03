@@ -5,6 +5,11 @@ Throttling, flow controlling StreamReader for aiohttp
 
 .. image:: https://img.shields.io/pypi/v/aiothrottle.svg
     :target: https://pypi.python.org/pypi/aiothrottle
+    :alt: Package Version
+
+.. image:: https://travis-ci.org/panda73111/aiothrottle.svg?branch=master
+    :target: https://travis-ci.org/panda73111/aiothrottle
+    :alt: Build Status
 
 .. image:: https://readthedocs.org/projects/aiothrottle/badge/?version=latest
     :target: https://readthedocs.org/projects/aiothrottle/?badge=latest
@@ -12,9 +17,11 @@ Throttling, flow controlling StreamReader for aiohttp
 
 .. image:: https://img.shields.io/pypi/pyversions/aiothrottle.svg
     :target: https://www.python.org/
+    :alt: Python Version
 
 .. image:: https://img.shields.io/pypi/l/aiothrottle.svg
     :target: http://opensource.org/licenses/GPL-3.0
+    :alt: GPLv3
 
 Requirements
 ------------
