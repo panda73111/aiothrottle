@@ -26,7 +26,7 @@ class TestThrottledStreamReader(unittest.TestCase):
         r.feed_data(b'da', 2)
         res = self.loop.run_until_complete(r.read(1))
         self.assertEqual(res, b'd')
-        #self.assertTrue(self.transp.resume_reading.called)
+        # self.assertTrue(self.transp.resume_reading.called)
 
     def test_readline(self):
         r = self._make_one()
@@ -34,7 +34,7 @@ class TestThrottledStreamReader(unittest.TestCase):
         r.feed_data(b'data\n', 5)
         res = self.loop.run_until_complete(r.readline())
         self.assertEqual(res, b'data\n')
-        #self.assertTrue(self.transp.resume_reading.called)
+        # self.assertTrue(self.transp.resume_reading.called)
 
     def test_readany(self):
         r = self._make_one()
@@ -42,7 +42,7 @@ class TestThrottledStreamReader(unittest.TestCase):
         r.feed_data(b'data', 4)
         res = self.loop.run_until_complete(r.readany())
         self.assertEqual(res, b'data')
-        #self.assertTrue(self.transp.resume_reading.called)
+        # self.assertTrue(self.transp.resume_reading.called)
 
     def test_readexactly(self):
         r = self._make_one()
@@ -50,10 +50,10 @@ class TestThrottledStreamReader(unittest.TestCase):
         r.feed_data(b'datadata', 8)
         res = self.loop.run_until_complete(r.readexactly(2))
         self.assertEqual(res, b'da')
-        #self.assertTrue(self.transp.resume_reading.called)
+        # self.assertTrue(self.transp.resume_reading.called)
 
     def test_feed_data(self):
         r = self._make_one()
         r._stream.paused = False
         r.feed_data(b'datadata', 8)
-        #self.assertTrue(self.transp.pause_reading.called)
+        # self.assertTrue(self.transp.pause_reading.called)
