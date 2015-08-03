@@ -17,7 +17,7 @@ class TestThrottledStreamReader(unittest.TestCase):
 
     def _make_one(self, *args, **kwargs):
         return aiothrottle.ThrottledStreamReader(
-            self.stream, rate_limit=10, limit=10,
+            self.stream, rate_limit=10, buffer_limit=1,
             loop=self.loop, *args, **kwargs)
 
     def test_read(self):
