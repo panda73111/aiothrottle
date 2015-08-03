@@ -1,12 +1,14 @@
 
 language: python
 python:
-  - 3.3
-  - 3.4
+    - 3.3
+    - 3.4
 
 install:
-  - pip install aiohttp
+    - pip install aiohttp
+    - pip install flake8
 
 script:
-  - python setup.py check -rm
+    - flake8 aiothrottle tests
+    - python setup.py check -rm
 
