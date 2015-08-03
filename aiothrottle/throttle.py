@@ -146,7 +146,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         :param tuple args: arguments passed through to StreamReader
         :param dict kwargs: keyword arguments passed through to StreamReader
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(loop=loop, *args, **kwargs)
 
         self._loop = loop or asyncio.get_event_loop()
         self._throttle = Throttle(rate_limit, self._loop)
