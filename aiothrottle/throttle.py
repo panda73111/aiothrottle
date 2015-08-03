@@ -33,7 +33,7 @@ class Throttle:
         if loop is None:
             loop = asyncio.get_event_loop()
         self._loop = loop
-        self._interv_start = loop.time()
+        self._reset_time = loop.time()
 
     @property
     def limit(self):
@@ -76,6 +76,7 @@ class Throttle:
     def reset_io(self):
         """resets the registered IO actions"""
         self._io = 0
+        self._reset_time = self._loop.time()
         LOGGER.debug("[throttle] reset IO")
 
     @asyncio.coroutine
@@ -84,6 +85,36 @@ class Throttle:
         time_left = self.time_left()
         LOGGER.debug("[throttle] sleeping for %.3f seconds", time_left)
         yield from asyncio.sleep(time_left)
+
+    def current_rate(self):
+        """returns the current rate, measured since the last call to :meth:`reset_io`
+
+        In case the time since the last reset is too short, this returns ``-1``.
+
+        :returns: the current rate in bytes per second
+        :rtype: float
+        """
+        if self._io <= 0:
+            return 0
+        now = self._loop.time()
+        duration = now - self._reset_time
+        if duration <= 0:
+            LOGGER.warning("[throttle] unable to measure rate, duraction <= 0")
+            return -1
+        rate = self._io / duration
+        LOGGER.debug("[throttle] measured current rate: %.3f B/s", rate)
+        return rate
+
+    def within_limit(self):
+        """returns the current limitation state
+
+        :returns: ``True`` if the current rate is equal or below the limit rate
+        :rtype: bool
+        """
+        current = self.current_rate()
+        within_limit = current < self._limit
+        LOGGER.debug("[throttle] %s rate", "within" if within_limit else "not within")
+        return within_limit
 
 
 class ThrottledStreamReader(aiohttp.StreamReader):
@@ -120,14 +151,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         self._b_limit = buffer_limit * 2
         self._b_limit_reached = False
         self._check_handle = None
-        self._limiting = True
-
-        # resume transport reading
-        if stream.paused:
-            try:
-                stream.transport.resume_reading()
-            except AttributeError:
-                pass
+        self._throttling = True
 
     def __del__(self):
         if self._check_handle is not None:
@@ -141,14 +165,14 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         .. versionadded:: 0.1.1
         """
         self._throttle.limit = limit
-        self._limiting = True
+        self._throttling = True
 
     def unlimit_rate(self):
         """Unlimits the rate of this response
 
         .. versionadded:: 0.1.1
         """
-        self._limiting = False
+        self._throttling = False
         self._check_buffer_limit()
 
     def _try_pause(self):
@@ -188,20 +212,37 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         self._check_handle = None
         self._try_resume()
 
+    def _schedule_resume(self):
+        """resumes the transport as soon as the current rate is within the limit"""
+        # resume as soon as the target rate is reached
+        pause_time = self._throttle.time_left()
+        LOGGER.debug("[reader] resuming in %.3f seconds")
+        self._check_handle = self._loop.call_later(
+            pause_time, self._check_callback)
+
     def _check_buffer_limit(self):
         """Controls the size of the internal buffer"""
-        size = len(self._buffer)
+        buf_size = len(self._buffer)
         if self._stream.paused:
-            if (
-                    size < self._b_limit and (
-                        not self._limiting or
-                        self._b_limit_reached)):
+            resume = (
+                buf_size < self._b_limit and (
+                    not self._throttling or
+                    self._throttle.within_limit()))
+
+            if resume:
+                LOGGER.debug("[reader] resuming throttling")
                 self._try_resume()
                 self._b_limit_reached = False
+            else:
+                self._schedule_resume()
         else:
-            if size > self._b_limit:
+            if buf_size > self._b_limit:
+                LOGGER.debug("[reader] byte limit reached, pausing")
                 self._try_pause()
                 self._b_limit_reached = True
+                if self._check_handle is not None:
+                    self._check_handle.cancel()
+                    self._check_handle = None
 
     def _check_limits(self):
         """Controls rate and buffer size by pausing and resuming the transport"""
@@ -209,22 +250,29 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             self._check_handle.cancel()
             self._check_handle = None
 
-        if not self._limiting:
-            self._check_buffer_limit()
+        if not self._throttling:
+            # only watch the buffer limit
+            has_waiter = (
+                self._waiter is not None and
+                not self._waiter.cancelled())
+            if (
+                    not self._stream.paused and
+                    not has_waiter and
+                    len(self._buffer) > self._b_limit):
+                LOGGER.debug("[reader] resuming unthrottling")
+                self._try_resume()
             return
 
         self._try_pause()
 
         # watch the buffer limit
         buf_size = len(self._buffer)
-        if buf_size < self._b_limit:
-
-            # resume as soon as the target rate is reached
-            self._check_handle = self._loop.call_later(
-                self._throttle.time_left(), self._check_callback)
-
-        else:
+        if buf_size >= self._b_limit:
+            LOGGER.debug("[reader] byte limit reached, not resuming")
             self._b_limit_reached = True
+            return
+
+        self._schedule_resume()
 
     @asyncio.coroutine
     def read(self, byte_count=-1):
