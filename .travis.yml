@@ -13,3 +13,6 @@ script:
   - flake8 aiothrottle tests
   - coverage run --source=aiothrottle setup.py test
   - python setup.py check -rm
+
+after_success:
+  - coveralls
