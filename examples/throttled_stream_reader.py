@@ -10,6 +10,9 @@ def load_file(url):
     response = yield from aiohttp.request("GET", url)
     size = int(response.headers.get("Content-Length", "0"))
 
+    loop = asyncio.get_event_loop()
+    start_time = loop.time()
+
     with open("largefile.zip", "wb") as file:
         read_next = True
         loaded = 0
@@ -24,6 +27,12 @@ def load_file(url):
             loaded += chunk_len
             read_next = chunk_len != 0
     response.close()
+
+    end_time = loop.time()
+    download_time = end_time - start_time
+
+    print("download rate: %d KB/s",
+          int(size / download_time / 1024))
 
 # setup the rate limit to 200 KB/s
 aiothrottle.limit_rate(200 * 1024)
