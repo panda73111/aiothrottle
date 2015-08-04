@@ -1,0 +1,8 @@
+include LICENSE.txt
+include CHANGES.txt
+include README.rst
+graft aiothrottle
+graft docs
+graft examples
+graft tests
+prune docs/_build
