@@ -25,7 +25,7 @@ class TestThrottledStreamReader(unittest.TestCase):
         self.assertIsInstance(r._throttle, aiothrottle.Throttle)
         self.assertEqual(r._throttle.limit, 10)
         self.assertIs(r._stream, self.stream)
-        self.assertEqual(r._b_limit, 1)
+        self.assertEqual(r._b_limit, 2 * 1)
         self.assertFalse(r._b_limit_reached)
         self.assertIsNone(r._check_handle)
         self.assertTrue(r._throttling)
