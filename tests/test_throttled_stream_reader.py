@@ -1,6 +1,5 @@
 import asyncio
 import unittest
-from unittest import mock
 import aiothrottle
 
 
@@ -19,6 +18,17 @@ class TestThrottledStreamReader(unittest.TestCase):
         return aiothrottle.ThrottledStreamReader(
             self.stream, rate_limit=10, buffer_limit=1,
             loop=self.loop, *args, **kwargs)
+
+    def test_parameters(self):
+        r = self._make_one()
+        self.assertIs(r._loop, self.loop)
+        self.assertIsInstance(r._throttle, aiothrottle.Throttle)
+        self.assertEqual(r._throttle.limit, 10)
+        self.assertIs(r._stream, self.stream)
+        self.assertEqual(r._b_limit, 1)
+        self.assertFalse(r._b_limit_reached)
+        self.assertIsNone(r._check_handle)
+        self.assertTrue(r._throttling)
 
     def test_read(self):
         r = self._make_one()
