@@ -11,7 +11,7 @@ install:
   - pip install coveralls
 
 script:
-  - flake8 aiothrottle tests
+  - flake8 aiothrottle examples tests
   - coverage run --source=aiothrottle setup.py test
   - python setup.py check -rm
 
