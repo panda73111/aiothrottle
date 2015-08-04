@@ -5,8 +5,8 @@ from unittest import mock
 import sys
 import aiothrottle
 
-
 PY34 = sys.version_info >= (3, 4)
+
 
 class TestThrottle(unittest.TestCase):
 
