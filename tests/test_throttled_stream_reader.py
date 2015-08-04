@@ -1,5 +1,6 @@
 import asyncio
 import unittest
+from unittest import mock
 import aiothrottle
 
 
@@ -31,39 +32,43 @@ class TestThrottledStreamReader(unittest.TestCase):
         self.assertTrue(r._throttling)
 
     def test_read(self):
-        r = self._make_one()
-        r.paused = True
-        r.feed_data(b'da', 2)
-        res = self.loop.run_until_complete(r.read(1))
+        with mock.patch.object(self.loop, "time", return_value=111):
+            r = self._make_one()
+            r.feed_data(b'da', 2)
+        with mock.patch.object(self.loop, "time", return_value=112):
+            res = self.loop.run_until_complete(r.read(1))
         self.assertEqual(res, b'd')
         # self.assertTrue(self.transp.resume_reading.called)
 
     def test_readline(self):
-        r = self._make_one()
-        r.paused = True
-        r.feed_data(b'data\n', 5)
-        res = self.loop.run_until_complete(r.readline())
+        with mock.patch.object(self.loop, "time", return_value=111):
+            r = self._make_one()
+            r.feed_data(b'data\n', 5)
+        with mock.patch.object(self.loop, "time", return_value=112):
+            res = self.loop.run_until_complete(r.readline())
         self.assertEqual(res, b'data\n')
         # self.assertTrue(self.transp.resume_reading.called)
 
     def test_readany(self):
-        r = self._make_one()
-        r.paused = True
-        r.feed_data(b'data', 4)
-        res = self.loop.run_until_complete(r.readany())
+        with mock.patch.object(self.loop, "time", return_value=111):
+            r = self._make_one()
+            r.feed_data(b'data', 4)
+        with mock.patch.object(self.loop, "time", return_value=112):
+            res = self.loop.run_until_complete(r.readany())
         self.assertEqual(res, b'data')
         # self.assertTrue(self.transp.resume_reading.called)
 
     def test_readexactly(self):
-        r = self._make_one()
-        r.paused = True
-        r.feed_data(b'datadata', 8)
-        res = self.loop.run_until_complete(r.readexactly(2))
+        with mock.patch.object(self.loop, "time", return_value=111):
+            r = self._make_one()
+            r.feed_data(b'datadata', 8)
+        with mock.patch.object(self.loop, "time", return_value=112):
+            res = self.loop.run_until_complete(r.readexactly(2))
         self.assertEqual(res, b'da')
         # self.assertTrue(self.transp.resume_reading.called)
 
     def test_feed_data(self):
         r = self._make_one()
-        r._stream.paused = False
+        self.stream.paused = False
         r.feed_data(b'datadata', 8)
         # self.assertTrue(self.transp.pause_reading.called)
