@@ -59,22 +59,27 @@ Usage
 
 .. code:: python
 
+    import asyncio
     import aiohttp
     import aiothrottle
+
+    @asyncio.coroutine
+    def load_file(url):
+        response = yield from aiohttp.request("GET", url)
+
+        data = yield from response.read()
+        with open("largefile.zip", "wb") as file:
+            file.write(data)
+
+        response.close()
 
     # setup the rate limit to 200 KB/s
     aiothrottle.limit_rate(200 * 1024)
 
     # download a large file without blocking bandwidth
-    response = aiohttp.request("GET", "http://example.com/largefile.zip")
-    with open("largefile.zip", "wb") as file:
-        read_next = True
-        while read_next:
-            # read 1 MB chunks
-            chunk = response.content.read(2**20)
-            file.write(chunk)
-            read_next = len(chunk) != 0
-    response.close()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(load_file(
+        "http://example.com/largefile.zip"))
 
     # unset the rate limit
     aiothrottle.unlimit_rate()
