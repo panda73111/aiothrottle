@@ -8,7 +8,7 @@ import aiothrottle
 @asyncio.coroutine
 def load_file(url):
     response = yield from aiohttp.request("GET", url)
-    size = response.headers.get("Content-Length", 0)
+    size = int(response.headers.get("Content-Length", "0"))
 
     with open("largefile.zip", "wb") as file:
         read_next = True
