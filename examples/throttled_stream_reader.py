@@ -6,11 +6,10 @@ import aiothrottle
 
 
 @asyncio.coroutine
-def load_file(url):
-    response = yield from aiohttp.request("GET", url)
+def load_file(url, loop):
+    response = yield from aiohttp.request("GET", url, loop=loop)
     size = int(response.headers.get("Content-Length", "0"))
 
-    loop = asyncio.get_event_loop()
     start_time = loop.time()
 
     with open("largefile.zip", "wb") as file:
@@ -34,13 +33,21 @@ def load_file(url):
     print("download rate: %d KB/s",
           int(size / download_time / 1024))
 
-# setup the rate limit to 200 KB/s
-aiothrottle.limit_rate(200 * 1024)
 
-# download a large file without blocking bandwidth
-loop = asyncio.get_event_loop()
-loop.run_until_complete(load_file(
-    "http://ipv4.download.thinkbroadband.com/5MB.zip"))
+def main():
+    # setup the rate limit to 200 KB/s
+    aiothrottle.limit_rate(200 * 1024)
 
-# unset the rate limit
-aiothrottle.unlimit_rate()
+    # download a large file without blocking bandwidth
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(load_file(
+        "http://ipv4.download.thinkbroadband.com/5MB.zip", loop))
+
+    # unset the rate limit
+    aiothrottle.unlimit_rate()
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
