@@ -2,8 +2,11 @@ import asyncio
 import logging
 import unittest
 from unittest import mock
+import sys
 import aiothrottle
 
+
+PY34 = sys.version_info >= (3, 4)
 
 class TestThrottle(unittest.TestCase):
 
@@ -65,7 +68,10 @@ class TestThrottle(unittest.TestCase):
         with mock.patch.object(self.loop, "time", return_value=111):
             t = self._make_one()
             t.add_io(2)
-            with self.assertLogs(level=logging.WARNING):
+            if PY34:
+                with self.assertLogs(level=logging.WARNING):
+                    self.assertEqual(t.current_rate(), -1)
+            else:
                 self.assertEqual(t.current_rate(), -1)
         with mock.patch.object(self.loop, "time", return_value=116):
             self.assertEqual(t.current_rate(), 2/5)
