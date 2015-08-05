@@ -44,14 +44,10 @@ class TestThrottledStreamReader(unittest.TestCase):
                 self.stream, "transport", mock.Mock(spec=[])):
             # test catching AttributeError on stream.transport
             r = self._make_one()
-            r.feed_data(b'data', 4)
-            self.loop.run_until_complete(r.read(4))
-            r.feed_data(b'data', 4)
-            self.loop.run_until_complete(r.readany())
-            r.feed_data(b'data', 4)
-            self.loop.run_until_complete(r.readexactly(4))
-            r.feed_data(b'data\n', 5)
-            self.loop.run_until_complete(r.readline())
+            self.stream.paused = False
+            r._try_pause()
+            self.stream.paused = True
+            r._try_resume()
 
     def test_limit_rate(self):
         r = self._make_one()
