@@ -19,13 +19,13 @@ class TestThrottledStreamReader(unittest.TestCase):
         r = aiothrottle.ThrottledStreamReader(
             self.stream, rate_limit=10, buffer_limit=1,
             loop=self.loop, *args, **kwargs)
-        self.assertTrue(self.transp.resume_reading.called)
         return r
 
     def test_parameters(self):
         with mock.patch("asyncio.get_event_loop", return_value=self.loop):
             r = aiothrottle.ThrottledStreamReader(self.stream, 10, 1)
             self.assertIs(r._loop, self.loop)
+
         r = self._make_one()
         self.assertIs(r._loop, self.loop)
         self.assertIsInstance(r._throttle, aiothrottle.Throttle)
@@ -35,6 +35,21 @@ class TestThrottledStreamReader(unittest.TestCase):
         self.assertFalse(r._b_limit_reached)
         self.assertIsNone(r._check_handle)
         self.assertTrue(r._throttling)
+        self.assertTrue(self.transp.resume_reading.called)
+
+    def test_attribute_error(self):
+        with mock.patch.object(
+                self.stream, "transport", mock.Mock(spec=[])):
+            # test catching AttributeError on stream.transport
+            r = self._make_one()
+            r.feed_data(b'data', 4)
+            self.loop.run_until_complete(r.read(4))
+            r.feed_data(b'data', 4)
+            self.loop.run_until_complete(r.readany())
+            r.feed_data(b'data', 4)
+            self.loop.run_until_complete(r.readexactly(4))
+            r.feed_data(b'data\n', 5)
+            self.loop.run_until_complete(r.readline())
 
     def test_read(self):
         with mock.patch.object(self.loop, "time", return_value=111):
