@@ -77,6 +77,30 @@ class TestThrottledStreamReader(unittest.TestCase):
         klass = aiohttp.client_reqrep.ClientResponse.flow_control_class
         self.assertIs(klass, aiohttp.streams.FlowControlStreamReader)
 
+    def test_pause(self):
+        r = self._make_one()
+        self.transp.reset_mock()
+
+        self.stream.paused = True
+        r._try_pause()
+        self.assertFalse(self.transp.pause_reading.called)
+
+        self.stream.paused = False
+        r._try_pause()
+        self.assertTrue(self.transp.pause_reading.called)
+
+    def test_resume(self):
+        r = self._make_one()
+        self.transp.reset_mock()
+
+        self.stream.paused = False
+        r._try_resume()
+        self.assertFalse(self.transp.resume_reading.called)
+
+        self.stream.paused = True
+        r._try_resume()
+        self.assertTrue(self.transp.resume_reading.called)
+
     def test_read(self):
         with mock.patch.object(self.loop, "time", return_value=111):
             r = self._make_one()
