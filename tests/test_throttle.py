@@ -19,6 +19,9 @@ class TestThrottle(unittest.TestCase):
 
     def test_parameters(self):
         with mock.patch.object(self.loop, "time", return_value=111):
+            with mock.patch("asyncio.get_event_loop", return_value=self.loop):
+                t = aiothrottle.Throttle(10)
+                self.assertIs(t._loop, self.loop)
             t = self._make_one()
         self.assertEqual(t._limit, 10)
         self.assertEqual(t.limit, 10)

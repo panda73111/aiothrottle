@@ -23,6 +23,9 @@ class TestThrottledStreamReader(unittest.TestCase):
         return r
 
     def test_parameters(self):
+        with mock.patch("asyncio.get_event_loop", return_value=self.loop):
+            r = aiothrottle.ThrottledStreamReader(self.stream, 10, 1)
+            self.assertIs(r._loop, self.loop)
         r = self._make_one()
         self.assertIs(r._loop, self.loop)
         self.assertIsInstance(r._throttle, aiothrottle.Throttle)
