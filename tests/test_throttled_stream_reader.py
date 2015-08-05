@@ -31,11 +31,13 @@ class TestThrottledStreamReader(unittest.TestCase):
         r = self._make_one()
         self.assertIs(r._loop, self.loop)
         self.assertIsInstance(r._throttle, aiothrottle.Throttle)
+        self.assertEqual(r.limit, 10)
         self.assertEqual(r._throttle.limit, 10)
         self.assertIs(r._stream, self.stream)
         self.assertEqual(r._b_limit, 2 * 1)
         self.assertFalse(r._b_limit_reached)
         self.assertIsNone(r._check_handle)
+        self.assertTrue(r.throttling)
         self.assertTrue(r._throttling)
         self.assertTrue(self.transp.resume_reading.called)
 

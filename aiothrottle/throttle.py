@@ -167,6 +167,14 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         if self._check_handle is not None:
             self._check_handle.cancel()
 
+    @property
+    def limit(self):
+        return self._throttle.limit
+
+    @property
+    def throttling(self):
+        return self._throttling
+
     def limit_rate(self, limit):
         """Sets the rate limit of this response
 
