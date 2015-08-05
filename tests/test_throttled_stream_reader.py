@@ -1,6 +1,8 @@
 import asyncio
+import functools
 import unittest
 from unittest import mock
+import aiohttp
 import aiothrottle
 
 
@@ -50,6 +52,32 @@ class TestThrottledStreamReader(unittest.TestCase):
             self.loop.run_until_complete(r.readexactly(4))
             r.feed_data(b'data\n', 5)
             self.loop.run_until_complete(r.readline())
+
+    def test_limit_rate(self):
+        r = self._make_one()
+        r.limit_rate(20)
+        self.assertEqual(r._throttle.limit, 20)
+        self.assertTrue(r._throttling)
+
+    def test_unlimit_rate(self):
+        r = self._make_one()
+        r.unlimit_rate()
+        self.assertFalse(r._throttling)
+        self.assertTrue(self.transp.resume_reading.called)
+
+    def test_global_limit_rate(self):
+        aiothrottle.limit_rate(10)
+        klass = aiohttp.client_reqrep.ClientResponse.flow_control_class
+        self.assertIsInstance(klass, functools.partial)
+        r = klass(self.stream, loop=self.loop)
+        self.assertIsInstance(r, aiothrottle.ThrottledStreamReader)
+        self.assertEqual(r._throttle.limit, 10)
+
+    def test_global_unlimit_rate(self):
+        aiothrottle.limit_rate(10)
+        aiothrottle.unlimit_rate()
+        klass = aiohttp.client_reqrep.ClientResponse.flow_control_class
+        self.assertIs(klass, aiohttp.streams.FlowControlStreamReader)
 
     def test_read(self):
         with mock.patch.object(self.loop, "time", return_value=111):
