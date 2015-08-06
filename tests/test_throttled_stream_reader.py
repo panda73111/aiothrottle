@@ -1,15 +1,16 @@
 import asyncio
 import functools
-import unittest
-from unittest import mock
+from unittest import TestCase
+from unittest.mock import Mock, patch
 import aiohttp
+from aiohttp.client_reqrep import ClientResponse
 import aiothrottle
 
 
-class TestThrottledStreamReader(unittest.TestCase):
+class TestThrottledStreamReader(TestCase):
 
     def setUp(self):
-        self.stream = unittest.mock.Mock()
+        self.stream = Mock()
         self.transp = self.stream.transport
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(None)
@@ -17,14 +18,13 @@ class TestThrottledStreamReader(unittest.TestCase):
     def tearDown(self):
         self.loop.close()
 
-    def _make_one(self, *args, **kwargs):
+    def _make_one(self):
         r = aiothrottle.ThrottledStreamReader(
-            self.stream, rate_limit=10, buffer_limit=1,
-            loop=self.loop, *args, **kwargs)
+            self.stream, rate_limit=10, buffer_limit=1, loop=self.loop)
         return r
 
     def test_parameters(self):
-        with mock.patch("asyncio.get_event_loop", return_value=self.loop):
+        with patch("asyncio.get_event_loop", return_value=self.loop):
             r = aiothrottle.ThrottledStreamReader(self.stream, 10, 1)
             self.assertIs(r._loop, self.loop)
 
@@ -42,8 +42,8 @@ class TestThrottledStreamReader(unittest.TestCase):
         self.assertTrue(self.transp.resume_reading.called)
 
     def test_attribute_error(self):
-        with mock.patch.object(
-                self.stream, "transport", mock.Mock(spec=[])):
+        with patch.object(
+                self, "stream", Mock(spec=["paused"])):
             # test catching AttributeError on stream.transport
             r = self._make_one()
             self.stream.paused = False
@@ -65,7 +65,7 @@ class TestThrottledStreamReader(unittest.TestCase):
 
     def test_global_limit_rate(self):
         aiothrottle.limit_rate(10)
-        klass = aiohttp.client_reqrep.ClientResponse.flow_control_class
+        klass = ClientResponse.flow_control_class
         self.assertIsInstance(klass, functools.partial)
         r = klass(self.stream, loop=self.loop)
         self.assertIsInstance(r, aiothrottle.ThrottledStreamReader)
@@ -74,7 +74,7 @@ class TestThrottledStreamReader(unittest.TestCase):
     def test_global_unlimit_rate(self):
         aiothrottle.limit_rate(10)
         aiothrottle.unlimit_rate()
-        klass = aiohttp.client_reqrep.ClientResponse.flow_control_class
+        klass = ClientResponse.flow_control_class
         self.assertIs(klass, aiohttp.streams.FlowControlStreamReader)
 
     def test_pause(self):
@@ -102,35 +102,27 @@ class TestThrottledStreamReader(unittest.TestCase):
         self.assertTrue(self.transp.resume_reading.called)
 
     def test_read(self):
-        with mock.patch.object(self.loop, "time", return_value=111):
-            r = self._make_one()
-            r.feed_data(b'da', 2)
-        with mock.patch.object(self.loop, "time", return_value=112):
-            res = self.loop.run_until_complete(r.read(1))
+        r = self._make_one()
+        r.feed_data(b'da', 2)
+        res = self.loop.run_until_complete(r.read(1))
         self.assertEqual(res, b'd')
 
     def test_readline(self):
-        with mock.patch.object(self.loop, "time", return_value=111):
-            r = self._make_one()
-            r.feed_data(b'data\n', 5)
-        with mock.patch.object(self.loop, "time", return_value=112):
-            res = self.loop.run_until_complete(r.readline())
+        r = self._make_one()
+        r.feed_data(b'data\n', 5)
+        res = self.loop.run_until_complete(r.readline())
         self.assertEqual(res, b'data\n')
 
     def test_readany(self):
-        with mock.patch.object(self.loop, "time", return_value=111):
-            r = self._make_one()
-            r.feed_data(b'data', 4)
-        with mock.patch.object(self.loop, "time", return_value=112):
-            res = self.loop.run_until_complete(r.readany())
+        r = self._make_one()
+        r.feed_data(b'data', 4)
+        res = self.loop.run_until_complete(r.readany())
         self.assertEqual(res, b'data')
 
     def test_readexactly(self):
-        with mock.patch.object(self.loop, "time", return_value=111):
-            r = self._make_one()
-            r.feed_data(b'datadata', 8)
-        with mock.patch.object(self.loop, "time", return_value=112):
-            res = self.loop.run_until_complete(r.readexactly(2))
+        r = self._make_one()
+        r.feed_data(b'datadata', 8)
+        res = self.loop.run_until_complete(r.readexactly(2))
         self.assertEqual(res, b'da')
 
     def test_feed_data(self):
