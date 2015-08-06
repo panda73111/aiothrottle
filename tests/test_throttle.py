@@ -16,8 +16,11 @@ class TestThrottle(TestCase):
     def _make_one(self):
         return aiothrottle.Throttle(limit=10, loop=self.loop)
 
+    def _set_time(self, time):
+        return patch.object(self.loop, "time", return_value=time)
+
     def test_parameters(self):
-        with patch.object(self.loop, "time", return_value=111):
+        with self._set_time(111):
             with patch("asyncio.get_event_loop", return_value=self.loop):
                 t = aiothrottle.Throttle(10)
                 self.assertIs(t._loop, self.loop)
@@ -67,21 +70,21 @@ class TestThrottle(TestCase):
         asyncio.sleep.assert_called_with(2/10)
 
     def test_current_rate(self):
-        with patch.object(self.loop, "time", return_value=111):
+        with self._set_time(111):
             t = self._make_one()
             t.add_io(2)
             self.assertRaises(RuntimeError, t.current_rate)
 
-        with patch.object(self.loop, "time", return_value=116):
+        with self._set_time(116):
             self.assertEqual(t.current_rate(), 2/5)
             t.reset_io()
             self.assertEqual(t.current_rate(), 0)
 
     def test_within_limit(self):
-        with patch.object(self.loop, "time", return_value=111):
+        with self._set_time(111):
             t = self._make_one()
         t.add_io(2)
-        with patch.object(self.loop, "time", return_value=116):
+        with self._set_time(116):
             self.assertTrue(t.within_limit())
             t.add_io(60)
             self.assertFalse(t.within_limit())

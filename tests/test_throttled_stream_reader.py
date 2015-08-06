@@ -23,6 +23,9 @@ class TestThrottledStreamReader(TestCase):
             self.stream, rate_limit=10, buffer_limit=1, loop=self.loop)
         return r
 
+    def _set_time(self, time):
+        return patch.object(self.loop, "time", return_value=time)
+
     def test_parameters(self):
         with patch("asyncio.get_event_loop", return_value=self.loop):
             r = aiothrottle.ThrottledStreamReader(self.stream, 10, 1)
