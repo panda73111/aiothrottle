@@ -239,14 +239,23 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         self._check_handle = self._loop.call_later(
             pause_time, self._check_callback)
 
+    @asyncio.coroutine
     def _check_buffer_limit(self):
         """Controls the size of the internal buffer"""
         buf_size = len(self._buffer)
         if self._stream.paused:
+            try:
+                within_limit = self._throttle.within_limit()
+            except RuntimeError:
+                # not enough time has passed since feed_data()
+                yield from asyncio.sleep(.001)
+                yield from self._check_buffer_limit()
+                return
+
             resume = (
                 buf_size < self._b_limit and (
                     not self._throttling or
-                    self._throttle.within_limit()))
+                    within_limit))
 
             if resume:
                 LOGGER.debug("[reader] resuming throttling")
@@ -303,7 +312,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         """
         LOGGER.debug("[reader] reading %d bytes", byte_count)
         data = yield from super().read(byte_count)
-        self._check_buffer_limit()
+        yield from self._check_buffer_limit()
         return data
 
     @asyncio.coroutine
@@ -315,7 +324,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         """
         LOGGER.debug("[reader] reading line")
         data = yield from super().readline()
-        self._check_buffer_limit()
+        yield from self._check_buffer_limit()
         return data
 
     @asyncio.coroutine
@@ -327,7 +336,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         """
         LOGGER.debug("[reader] reading anything")
         data = yield from super().readany()
-        self._check_buffer_limit()
+        yield from self._check_buffer_limit()
         return data
 
     @asyncio.coroutine
@@ -343,7 +352,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         """
         LOGGER.debug("[reader] reading exactly %d bytes", byte_count)
         data = yield from super().readexactly(byte_count)
-        self._check_buffer_limit()
+        yield from self._check_buffer_limit()
         return data
 
 
