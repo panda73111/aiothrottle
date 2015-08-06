@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import asyncio
+import os
 import aiohttp
 import aiothrottle
 
@@ -12,15 +13,19 @@ def load_file(url, loop):
 
     start_time = loop.time()
 
-    with open("largefile.zip", "wb") as file:
+    with open(os.devnull, "wb") as file:
         read_next = True
         loaded = 0
+        prev_progress = -1
         while read_next:
             # read 1 MB chunks
             chunk = yield from response.content.read(2**20)
             file.write(chunk)
 
-            print("%d%%" % int(loaded * 100 / size))
+            progress = int(loaded * 100 / size)
+            if progress != prev_progress:
+                print("%d%%" % progress)
+            prev_progress = progress
 
             chunk_len = len(chunk)
             loaded += chunk_len
@@ -30,8 +35,9 @@ def load_file(url, loop):
     end_time = loop.time()
     download_time = end_time - start_time
 
-    print("download rate: %d KB/s",
-          int(size / download_time / 1024))
+    print(
+        "download rate: %d KB/s" %
+        int(size / download_time / 1024))
 
 
 def main():
