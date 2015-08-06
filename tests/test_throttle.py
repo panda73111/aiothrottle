@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from unittest import TestCase
 from unittest.mock import Mock, patch
 import sys
@@ -71,11 +70,8 @@ class TestThrottle(TestCase):
         with patch.object(self.loop, "time", return_value=111):
             t = self._make_one()
             t.add_io(2)
-            if PY34:
-                with self.assertLogs(level=logging.WARNING):
-                    self.assertEqual(t.current_rate(), -1)
-            else:
-                self.assertEqual(t.current_rate(), -1)
+            self.assertRaises(RuntimeError, t.current_rate)
+
         with patch.object(self.loop, "time", return_value=116):
             self.assertEqual(t.current_rate(), 2/5)
             t.reset_io()

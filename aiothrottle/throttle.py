@@ -99,9 +99,10 @@ class Throttle:
             return 0
         now = self._loop.time()
         duration = now - self._reset_time
+
         if duration <= 0:
-            LOGGER.warning("[throttle] unable to measure rate, duraction <= 0")
-            return -1
+            raise RuntimeError("unable to measure rate, duraction <= 0")
+
         rate = self._io / duration
         LOGGER.debug("[throttle] measured current rate: %.3f B/s", rate)
         return rate
