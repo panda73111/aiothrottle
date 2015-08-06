@@ -168,7 +168,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             self._check_handle.cancel()
 
     @property
-    def limit(self):
+    def rate_limit(self):
         return self._throttle.limit
 
     @property
