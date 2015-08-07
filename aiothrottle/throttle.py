@@ -279,15 +279,13 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             self._check_handle.cancel()
             self._check_handle = None
 
+        buf_size = len(self._buffer)
+
         if not self._throttling:
             # only watch the buffer limit
-            has_waiter = (
-                self._waiter is not None and
-                not self._waiter.cancelled())
             if (
-                    not self._stream.paused and
-                    not has_waiter and
-                    len(self._buffer) > self._b_limit):
+                    self._stream.paused and
+                    buf_size < self._b_limit):
                 LOGGER.debug("[reader] resuming unthrottling")
                 self._try_resume()
             return
@@ -295,7 +293,6 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         self._try_pause()
 
         # watch the buffer limit
-        buf_size = len(self._buffer)
         if buf_size >= self._b_limit:
             LOGGER.debug("[reader] byte limit reached, not resuming")
             self._b_limit_reached = True
