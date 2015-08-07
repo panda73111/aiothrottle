@@ -209,3 +209,17 @@ class TestThrottledStreamReader(TestCase):
         r.unlimit_rate()
         r.feed_data(b"data")
         self.assertTrue(self.stream.paused)
+
+    def test_nonthrottling_nonfull_buffer_resuming_feed(self):
+        r = self._make_one_nonfull_buffer()
+        r.unlimit_rate()
+        r._try_pause()
+        r.feed_data(b"data")
+        self.assertFalse(self.stream.paused)
+
+    def test_nonthrottling_full_buffer_nonresuming_feed(self):
+        r = self._make_one_full_buffer()
+        r.unlimit_rate()
+        r._try_pause()
+        r.feed_data(b"data")
+        self.assertTrue(self.stream.paused)
