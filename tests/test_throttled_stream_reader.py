@@ -42,7 +42,6 @@ class TestThrottledStreamReader(TestCase):
         self.assertFalse(r._b_limit_reached)
         self.assertIsNone(r._check_handle)
         self.assertTrue(r.throttling)
-        self.assertTrue(r._throttling)
         self.assertTrue(self.transp.resume_reading.called)
 
     def test_attribute_error(self):
@@ -59,14 +58,13 @@ class TestThrottledStreamReader(TestCase):
         r = self._make_one()
         r.limit_rate(20)
         self.assertEqual(r._throttle.limit, 20)
-        self.assertTrue(r._throttling)
+        self.assertTrue(r.throttling)
 
     def test_unlimit_rate(self):
         r = self._make_one()
         r.unlimit_rate()
-        self.assertFalse(r._throttling)
-        self.assertFalse(self.transp.pause_reading.called)
-        self.assertTrue(self.transp.resume_reading.called)
+        self.assertFalse(r.throttling)
+        self.assertFalse(self.stream.paused)
 
     def test_global_limit_rate(self):
         aiothrottle.limit_rate(10)
@@ -134,62 +132,68 @@ class TestThrottledStreamReader(TestCase):
         res = self.loop.run_until_complete(r.readexactly(2))
         self.assertEqual(res, b'da')
 
-    def test_feed_data(self):
-        r = self._make_one()
-        self.transp.reset_mock()
-        self.stream.paused = False
-        r.feed_data(b'datadata')
-        self.assertTrue(self.transp.pause_reading.called)
-        self.assertFalse(self.transp.resume_reading.called)
-
-    def test_nonfull_buffer_pausing(self):
+    def _make_one_nonfull_buffer(self):
         with self._set_time(111):
             r = self._make_one()
-            r._try_resume()
             self.transp.reset_mock()
             r.feed_data(b"data" * 3)
+        return r
+
+    def _make_one_full_buffer(self):
+        r = self._make_one_nonfull_buffer()
+        with self._set_time(111):
+            r.feed_data(b"data" * 3)
+        return r
+
+    def test_nonfull_buffer(self):
+        r = self._make_one_nonfull_buffer()
+        self.assertFalse(r._b_limit_reached)
+
+    def test_full_buffer(self):
+        r = self._make_one_full_buffer()
+        self.assertTrue(r._b_limit_reached)
+
+    def test_scheduling_resume(self):
+        r = self._make_one_nonfull_buffer()
+        self.assertIsNotNone(r._check_handle)
+        self.assertEqual(r._check_handle._when, 111 + 12 / 10)
+
+    def test_nonscheduling_resume(self):
+        r = self._make_one_full_buffer()
+        self.assertIsNone(r._check_handle)
+
+    def test_throttling_nonfull_buffer_pausing(self):
+        r = self._make_one_nonfull_buffer()
+        self.assertTrue(self.stream.paused)
 
         with self._set_time(112):
             self.loop.run_until_complete(r.read(4))
+            self.assertTrue(self.stream.paused)
 
-        self.assertTrue(self.transp.pause_reading.called)
-        self.assertFalse(self.transp.resume_reading.called)
-
-    def test_nonfull_buffer_resuming(self):
-        with self._set_time(111):
-            r = self._make_one()
-            r._try_pause()
-            self.transp.reset_mock()
-            r.feed_data(b"data")
+    def test_throttling_full_buffer_pausing(self):
+        r = self._make_one_full_buffer()
+        self.assertTrue(self.stream.paused)
 
         with self._set_time(112):
             self.loop.run_until_complete(r.read(4))
+            self.assertTrue(self.stream.paused)
 
-        self.assertFalse(self.transp.pause_reading.called)
-        self.assertTrue(self.transp.resume_reading.called)
+    def test_nonthrottling_nonfull_buffer_nonpausing(self):
+        r = self._make_one_nonfull_buffer()
+        r.unlimit_rate()
+        self.assertFalse(self.stream.paused)
 
-    def test_full_buffer_pausing(self):
-        with self._set_time(111):
-            r = self._make_one()
-            r._try_resume()
-            self.transp.reset_mock()
-            r.feed_data(b"data" * 6)
-
-        with self._set_time(113):
+        with self._set_time(112):
             self.loop.run_until_complete(r.read(4))
+            self.assertFalse(self.stream.paused)
 
-        self.assertTrue(self.transp.pause_reading.called)
-        self.assertFalse(self.transp.resume_reading.called)
+    def test_nonthrottling_full_buffer_pausing(self):
+        r = self._make_one_full_buffer()
+        r.unlimit_rate()
+        self.assertTrue(self.stream.paused)
 
-    def test_full_buffer_nonresuming(self):
-        with self._set_time(111):
-            r = self._make_one()
-            r._try_pause()
-            self.transp.reset_mock()
-            r.feed_data(b"data" * 6)
-
-        with self._set_time(114):
+        with self._set_time(112):
             self.loop.run_until_complete(r.read(4))
-
-        self.assertFalse(self.transp.pause_reading.called)
-        self.assertFalse(self.transp.resume_reading.called)
+            self.assertTrue(self.stream.paused)
+            self.loop.run_until_complete(r.read(20))
+            self.assertFalse(self.stream.paused)
