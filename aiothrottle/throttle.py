@@ -192,7 +192,8 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         .. versionadded:: 0.1.1
         """
         self._throttling = False
-        self._check_buffer_limit()
+        if len(self._buffer) < self._b_limit:
+            self._try_resume()
 
     def _try_pause(self):
         """Pauses the transport if not already paused"""
