@@ -1,6 +1,15 @@
 CHANGES
 =======
 
+0.1.2 (08-08-2015)
+------------------
+
+- Fixed resuming transport too often
+
+- Added 'rate_limit' and 'throttling' properties
+
+- Fixed buffer limit control
+
 0.1.1 (08-02-2015)
 ------------------
 
