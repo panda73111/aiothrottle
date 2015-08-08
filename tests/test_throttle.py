@@ -7,6 +7,11 @@ import aiothrottle
 PY34 = sys.version_info >= (3, 4)
 
 
+@asyncio.coroutine
+def sleep_mock(*_):
+    pass
+
+
 class TestThrottle(TestCase):
 
     def setUp(self):
@@ -58,13 +63,9 @@ class TestThrottle(TestCase):
         t.reset_io()
         self.assertEqual(t._io, 0)
 
+    @patch("asyncio.sleep", Mock(wraps=sleep_mock))
     def test_wait_remaining(self):
-        @asyncio.coroutine
-        def sleep_mock(*_):
-            pass
-
         t = self._make_one()
-        asyncio.sleep = Mock(wraps=sleep_mock)
         t.add_io(2)
         self.loop.run_until_complete(t.wait_remaining())
         asyncio.sleep.assert_called_with(2/10)

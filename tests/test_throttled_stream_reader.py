@@ -7,6 +7,11 @@ from aiohttp.client_reqrep import ClientResponse
 import aiothrottle
 
 
+@asyncio.coroutine
+def sleep_mock(*_):
+    pass
+
+
 class TestThrottledStreamReader(TestCase):
 
     def setUp(self):
@@ -108,24 +113,28 @@ class TestThrottledStreamReader(TestCase):
         self.assertFalse(self.transp.pause_reading.called)
         self.assertTrue(self.transp.resume_reading.called)
 
+    @patch("asyncio.sleep", Mock(wraps=sleep_mock))
     def test_read(self):
         r = self._make_one()
         r.feed_data(b'da')
         res = self.loop.run_until_complete(r.read(1))
         self.assertEqual(res, b'd')
 
+    @patch("asyncio.sleep", Mock(wraps=sleep_mock))
     def test_readline(self):
         r = self._make_one()
         r.feed_data(b'data\n')
         res = self.loop.run_until_complete(r.readline())
         self.assertEqual(res, b'data\n')
 
+    @patch("asyncio.sleep", Mock(wraps=sleep_mock))
     def test_readany(self):
         r = self._make_one()
         r.feed_data(b'data')
         res = self.loop.run_until_complete(r.readany())
         self.assertEqual(res, b'data')
 
+    @patch("asyncio.sleep", Mock(wraps=sleep_mock))
     def test_readexactly(self):
         r = self._make_one()
         r.feed_data(b'datadata')
