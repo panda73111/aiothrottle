@@ -162,6 +162,12 @@ class TestThrottledStreamReader(TestCase):
         r = self._make_one_full_buffer()
         self.assertIsNone(r._check_handle)
 
+    def test_check_callback(self):
+        r = self._make_one_nonfull_buffer()
+        r._check_callback()
+        self.assertIsNone(r._check_handle)
+        self.assertFalse(self.stream.paused)
+
     def test_throttling_nonfull_buffer_pausing(self):
         r = self._make_one_nonfull_buffer()
         self.assertTrue(self.stream.paused)
