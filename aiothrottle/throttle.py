@@ -265,13 +265,11 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             else:
                 self._schedule_resume()
         else:
-            if buf_size > self._b_limit:
-                LOGGER.debug("[reader] byte limit reached, pausing")
-                self._try_pause()
-                self._b_limit_reached = True
-                if self._check_handle is not None:
-                    self._check_handle.cancel()
-                    self._check_handle = None
+            # read() only reduces buffer size,
+            # feed_data() pauses on full buffer,
+            # so this can only be reached on
+            # non-full buffer
+            assert buf_size <= self._b_limit
 
     def _check_limits(self):
         """Controls rate and buffer size by pausing/resuming the transport"""
