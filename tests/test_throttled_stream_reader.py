@@ -168,6 +168,13 @@ class TestThrottledStreamReader(TestCase):
         self.assertIsNone(r._check_handle)
         self.assertFalse(self.stream.paused)
 
+    def test_callback_cancel(self):
+        r = self._make_one()
+        handle = Mock()
+        r._check_handle = handle
+        del r
+        self.assertTrue(handle.cancel.called)
+
     def test_throttling_nonfull_buffer_pausing(self):
         r = self._make_one_nonfull_buffer()
         self.assertTrue(self.stream.paused)
