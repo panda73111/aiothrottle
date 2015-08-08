@@ -88,6 +88,5 @@ Usage
 TODO
 ----
 
-- Unit tests
 - Upload rate limiting class
 - General socket limiting class
