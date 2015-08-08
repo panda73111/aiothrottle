@@ -154,6 +154,25 @@ class TestThrottledStreamReader(TestCase):
             r.feed_data(b"data" * 3)
         return r
 
+    def test_recheck_on_error(self):
+        current_time = 111
+
+        def time_mock():
+            return current_time
+
+        @asyncio.coroutine
+        def sleep_mock(delay, *_):
+            # simulate the passing of time
+            nonlocal current_time
+            current_time += delay
+
+        asyncio.sleep = Mock(wraps=sleep_mock)
+
+        with patch.object(self.loop, "time", time_mock):
+            r = self._make_one()
+            r.feed_data(b"data")
+            self.loop.run_until_complete(r.read(4))
+
     def test_nonfull_buffer(self):
         r = self._make_one_nonfull_buffer()
         self.assertFalse(r._b_limit_reached)
