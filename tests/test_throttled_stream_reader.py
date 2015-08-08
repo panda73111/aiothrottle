@@ -161,17 +161,17 @@ class TestThrottledStreamReader(TestCase):
             return current_time
 
         @asyncio.coroutine
-        def sleep_mock(delay, *_):
+        def timing_sleep_mock(delay, *_):
             # simulate the passing of time
             nonlocal current_time
             current_time += delay
 
-        asyncio.sleep = Mock(wraps=sleep_mock)
+        with patch("asyncio.sleep", Mock(wraps=timing_sleep_mock)):
 
-        with patch.object(self.loop, "time", time_mock):
-            r = self._make_one()
-            r.feed_data(b"data")
-            self.loop.run_until_complete(r.read(4))
+            with patch.object(self.loop, "time", time_mock):
+                r = self._make_one()
+                r.feed_data(b"data")
+                self.loop.run_until_complete(r.read(4))
 
     def test_nonfull_buffer(self):
         r = self._make_one_nonfull_buffer()
@@ -185,6 +185,10 @@ class TestThrottledStreamReader(TestCase):
         r = self._make_one_nonfull_buffer()
         self.assertIsNotNone(r._check_handle)
         self.assertEqual(r._check_handle._when, 111 + 12 / 10)
+        mock_handle = Mock()
+        r._check_handle = mock_handle
+        r._schedule_resume()
+        self.assertTrue(mock_handle.cancel.called)
 
     def test_nonscheduling_resume(self):
         r = self._make_one_full_buffer()
