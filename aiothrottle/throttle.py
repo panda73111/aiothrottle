@@ -20,13 +20,12 @@ class Throttle:
     :meth:`time_left` returns the seconds to wail until
     ``[byte count] / [time passed] = [rate limit]``.
     After that, :meth:`reset_io` has to be called to measure the new rate.
+
+    :param int limit: the limit in bytes to read/write per second
+    :raises: :class:`ValueError`: invalid rate given
     """
 
     def __init__(self, limit, loop=None):
-        """
-        :param int limit: the limit in bytes to read/write per second
-        :raises: :class:`ValueError`: invalid rate given
-        """
         self._limit = 0
         self.limit = limit
         self._io = 0
@@ -132,21 +131,18 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         >>> partial = functools.partial(
         >>>     aiothrottle.ThrottledStreamReader, rate_limit=kbps * 1024)
         >>> aiohttp.client_reqrep.ClientResponse.flow_control_class = partial
+
+    :param aiohttp.parsers.StreamParser stream: the base stream
+    :param int rate_limit: the rate limit in bytes per second
+    :param int buffer_limit: the internal buffer limit in bytes
+    :param asyncio.BaseEventLoop loop: the asyncio event loop
+    :param tuple args: arguments passed through to StreamReader
+    :param dict kwargs: keyword arguments passed through to StreamReader
     """
 
     def __init__(
             self, stream, rate_limit,
             buffer_limit=2**16, loop=None, *args, **kwargs):
-        """
-        :param stream: the base stream containing the transport
-        :type: aiohttp.parsers.StreamParser
-        :param int rate_limit: the rate limit in bytes per second
-        :param int buffer_limit: the internal buffer limit in bytes
-        :param loop: the asyncio event loop
-        :type: asyncio.base_events.BaseEventLoop
-        :param tuple args: arguments passed through to StreamReader
-        :param dict kwargs: keyword arguments passed through to StreamReader
-        """
         super().__init__(loop=loop, *args, **kwargs)
 
         self._loop = loop or asyncio.get_event_loop()
