@@ -166,10 +166,22 @@ class ThrottledStreamReader(aiohttp.StreamReader):
 
     @property
     def rate_limit(self):
+        """
+        :returns: the current rate limit
+        :rtype: int
+
+        .. versionadded:: 0.1.2
+        """
         return self._throttle.limit
 
     @property
     def throttling(self):
+        """
+        :returns: wether the connection is being throttled
+        :rtype: bool
+
+        .. versionadded:: 0.1.2
+        """
         return self._throttling
 
     def limit_rate(self, limit):
