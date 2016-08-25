@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 from setuptools import setup, find_packages
 
 
 install_requires = ["aiohttp"]
-if sys.version_info < (3, 4):
-    install_requires += ["asyncio"]
 
 tests_require = install_requires + ["nose"]
 
@@ -41,8 +38,8 @@ setup(
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
     ],
     keywords=(
         "throttle bandwidth limit download "
