@@ -200,7 +200,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         .. versionadded:: 0.1.1
         """
         self._throttling = False
-        if len(self._buffer) < self._b_limit:
+        if self._buffer_size < self._b_limit:
             self._try_resume()
 
     def _try_pause(self):
@@ -257,7 +257,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
     @asyncio.coroutine
     def _check_buffer_limit(self):
         """Controls the size of the internal buffer"""
-        buf_size = len(self._buffer)
+        buf_size = self._buffer_size
         if self._stream.paused:
             try:
                 within_limit = self._throttle.within_limit()
@@ -291,7 +291,7 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             self._check_handle.cancel()
             self._check_handle = None
 
-        buf_size = len(self._buffer)
+        buf_size = self._buffer_size
 
         if not self._throttling:
             # only watch the buffer limit
