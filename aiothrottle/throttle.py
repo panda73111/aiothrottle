@@ -208,6 +208,9 @@ class ThrottledStreamReader(aiohttp.StreamReader):
         if self._stream.paused:
             return
         try:
+            if self._stream.transport.is_closing():
+                LOGGER.debug("[reader] is closing, not pausing")
+                return
             self._stream.transport.pause_reading()
         except AttributeError:
             pass
