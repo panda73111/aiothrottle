@@ -214,6 +214,11 @@ class ThrottledStreamReader(aiohttp.StreamReader):
             self._stream.transport.pause_reading()
         except AttributeError:
             pass
+        except RuntimeError as e:
+            # This can occur because _SSLProtocolTransport does not
+            # correctly pass through is_closing()
+            LOGGER.warn("[reader] RuntimeError: %s", e)
+            pass
         else:
             self._stream.paused = True
             LOGGER.debug("[reader] paused")
