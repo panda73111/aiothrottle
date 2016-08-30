@@ -17,6 +17,7 @@ class TestThrottledStreamReader(TestCase):
     def setUp(self):
         self.stream = Mock()
         self.stream.paused = True
+        self.stream.transport.is_closing.side_effect = [False]
         self.transp = self.stream.transport
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(None)

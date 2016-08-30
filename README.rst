@@ -30,8 +30,7 @@ Throttling, flow controlling StreamReader for aiohttp
 Requirements
 ------------
 
-- Python >= 3.3
-- asyncio https://pypi.python.org/pypi/asyncio
+- Python >= 3.4.2
 - aiohttp https://pypi.python.org/pypi/aiohttp
 
 
