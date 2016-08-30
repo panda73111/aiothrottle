@@ -17,11 +17,11 @@ def read_file(filename):
 
 setup(
     name="aiothrottle",
-    version="0.1.2post0",
+    version="0.1.3",
     packages=find_packages(),
     url="https://github.com/panda73111/aiothrottle",
     download_url=(
-        "https://github.com/panda73111/aiothrottle/archive/v0.1.1.tar.gz"),
+        "https://github.com/panda73111/aiothrottle/archive/v0.1.3.tar.gz"),
     license="GPLv3",
     author="Sebastian H\xfcther",
     author_email="sebastian.huether@gmx.de",
