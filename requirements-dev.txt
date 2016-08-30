@@ -1,0 +1,5 @@
+aiohttp
+nose
+coverage
+flake8
+sphinx
